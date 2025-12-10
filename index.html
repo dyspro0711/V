@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎲 Statistical Dice: High Score Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Roboto Mono', monospace;
+            user-select: none;
+        }
+        .font-title { font-family: 'Black Han Sans', sans-serif; }
+
+        .die {
+            width: 80px; height: 80px;
+            background: linear-gradient(145deg, #ffffff, #e2e8f0);
+            color: #1e293b;
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.5rem; font-weight: bold;
+            box-shadow: 0 6px 0 #94a3b8, 0 10px 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform 0.1s, top 0.1s;
+            position: relative; top: 0;
+        }
+        .die.locked {
+            background: #ef4444; color: white;
+            box-shadow: 0 6px 0 #991b1b; top: 6px; box-shadow: none;
+        }
+        .rolling { animation: shake 0.4s infinite; }
+        @keyframes shake { 0% { transform: rotate(0deg); } 25% { transform: rotate(8deg); } 75% { transform: rotate(-8deg); } 100% { transform: rotate(0deg); } }
+
+        .tab-btn {
+            flex: 1; text-align: center; padding: 10px; cursor: pointer;
+            background: #1e293b; color: #94a3b8; font-weight: bold;
+            border-bottom: 2px solid transparent; transition: all 0.2s;
+        }
+        .tab-btn.active { background: #334155; color: #fbbf24; border-bottom: 2px solid #fbbf24; }
+        .hidden-screen { display: none !important; }
+        
+        /* 통계 바 */
+        .stat-row { display: flex; align-items: center; margin-bottom: 6px; font-size: 11px; }
+        .stat-label { width: 20px; font-weight: bold; }
+        .stat-bar-bg { flex: 1; height: 12px; background: #334155; border-radius: 6px; overflow: hidden; margin: 0 8px; position: relative; }
+        /* 이론적 확률 (고정) */
+        .stat-bar-theo { height: 100%; background: rgba(255, 255, 255, 0.1); position: absolute; top: 0; left: 0; border-right: 2px dashed #666; box-sizing: border-box;}
+        /* 실험적 확률 (변동) */
+        .stat-bar-exp { height: 100%; background: #3b82f6; position: absolute; top: 0; left: 0; opacity: 0.8; transition: width 0.3s; }
+        
+        /* 최고 점수 강조 */
+        .high-score-box {
+            border: 2px solid #fbbf24;
+            background: rgba(251, 191, 36, 0.1);
+            box-shadow: 0 0 15px rgba(251, 191, 36, 0.2);
+        }
+    </style>
+</head>
+<body class="h-screen flex items-center justify-center overflow-hidden">
+
+    <div class="w-full max-w-6xl h-[750px] flex gap-6 p-4">
+        
+        <div class="w-1/4 flex flex-col gap-4">
+            <div class="bg-gray-800 p-6 rounded-2xl border border-gray-700 shadow-xl text-center">
+                <p class="text-xs text-gray-400 mb-1">CURRENT ASSETS</p>
+                <div class="text-4xl font-bold text-white mb-2">$<span id="player-money">1,000</span></div>
+                <div class="text-xs text-blue-300">ROUND <span id="round-num">1</span> / 10</div>
+            </div>
+
+            <div class="high-score-box p-6 rounded-2xl text-center">
+                <p class="text-xs text-yellow-500 font-bold mb-1">🏆 ALL-TIME HIGH SCORE</p>
+                <div class="text-3xl font-bold text-yellow-400">$<span id="high-score">0</span></div>
+                <p class="text-[10px] text-gray-400 mt-2">기록은 자동으로 저장됩니다.</p>
+            </div>
+
+            <div class="flex-1 bg-gray-900 p-3 rounded-2xl border border-gray-700 flex flex-col overflow-hidden">
+                <h3 class="text-xs font-bold text-gray-400 mb-2 border-b border-gray-700 pb-1">📋 STATISTICS LOG</h3>
+                <div id="game-log" class="flex-1 overflow-y-auto text-[10px] text-gray-300 space-y-1 font-mono p-1 custom-scrollbar">
+                    <div class="text-green-400">> 실험 시작: 초기 자금 $1,000</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-2/4 relative bg-gray-800 rounded-3xl border-4 border-gray-700 shadow-2xl overflow-hidden flex flex-col">
+            
+            <div id="screen-bet" class="absolute inset-0 flex flex-col items-center justify-center p-8 z-20 bg-gray-800">
+                <h2 class="text-3xl font-title text-white mb-2">INVESTMENT</h2>
+                <p class="text-gray-400 text-xs mb-8">기대 수익률을 고려하여 투자하십시오.</p>
+                
+                <div class="text-5xl font-bold text-green-400 mb-8">$<span id="bet-amount-display">0</span></div>
+                <input type="range" id="bet-slider" class="w-full mb-8 accent-green-500 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer" min="0" max="1000" value="0">
+                
+                <div class="flex gap-4 w-full mb-8">
+                    <button onclick="setBetPercent(0.1)" class="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold transition">10%</button>
+                    <button onclick="setBetPercent(0.5)" class="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded text-sm font-bold transition">50%</button>
+                    <button onclick="setBetPercent(1.0)" class="flex-1 py-3 bg-red-900 hover:bg-red-800 text-red-200 rounded text-sm font-bold transition">ALL IN</button>
+                </div>
+
+                <button onclick="startGame()" class="w-full py-4 bg-green-600 hover:bg-green-500 text-white font-title text-2xl rounded-xl shadow-lg transition transform active:scale-95">
+                    START ROUND
+                </button>
+            </div>
+
+            <div id="screen-game" class="absolute inset-0 flex flex-col items-center p-6 hidden-screen z-10 bg-gray-800">
+                <div class="w-full flex justify-between items-end mb-8 border-b border-gray-600 pb-4">
+                    <div>
+                        <div class="text-xs text-gray-400">INVESTED</div>
+                        <div class="text-2xl font-bold text-green-400">$<span id="current-bet">0</span></div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs text-gray-400">HAND RANK</div>
+                        <div class="text-2xl font-bold text-yellow-400" id="hand-name">-</div>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 mb-10">
+                    <div class="die" onclick="toggleLock(0)">1</div>
+                    <div class="die" onclick="toggleLock(1)">2</div>
+                    <div class="die" onclick="toggleLock(2)">3</div>
+                    <div class="die" onclick="toggleLock(3)">4</div>
+                    <div class="die" onclick="toggleLock(4)">5</div>
+                </div>
+
+                <div class="mb-auto text-center">
+                    <div class="text-sm text-gray-500 mb-1">ROI (배당률)</div>
+                    <div class="text-7xl font-black text-white tracking-tighter" id="current-multiplier">
+                        x0.0
+                    </div>
+                    <div class="text-xs text-gray-500 mt-2" id="mult-detail"></div>
+                </div>
+
+                <div class="w-full mt-4">
+                    <button id="roll-btn" onclick="rollDice()" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-title text-2xl rounded-xl shadow-[0_4px_0_#1e40af] active:translate-y-1 active:shadow-none transition-all">
+                        ROLL (<span id="rolls-left-display">3</span>)
+                    </button>
+                    <button id="confirm-btn" onclick="finishRound()" class="w-full py-4 bg-yellow-600 hover:bg-yellow-500 text-white font-title text-2xl rounded-xl shadow-[0_4px_0_#ca8a04] active:translate-y-1 active:shadow-none transition-all hidden-screen">
+                        CASH OUT
+                    </button>
+                </div>
+            </div>
+
+            <div id="screen-result" class="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gray-900/95 z-30 hidden-screen">
+                <h2 class="text-4xl font-title text-white mb-2" id="result-title">RESULT</h2>
+                <div class="text-6xl font-bold mb-6" id="result-mult">x0.0</div>
+                
+                <div class="bg-gray-800 p-6 rounded-xl w-full max-w-sm mb-8">
+                    <div class="flex justify-between text-white font-bold text-2xl"><span>회수금</span> <span class="text-green-400">$<span id="res-return">0</span></span></div>
+                    <div class="mt-4 pt-4 border-t border-gray-600 text-center text-sm text-gray-500">
+                        순수익: <span id="res-net">0</span>
+                    </div>
+                </div>
+
+                <button onclick="resetRound()" class="px-10 py-4 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-500 text-xl transition">
+                    다음 라운드
+                </button>
+            </div>
+        </div>
+
+        <div class="w-1/4 bg-gray-800 rounded-2xl border border-gray-700 shadow-xl flex flex-col overflow-hidden">
+            
+            <div class="flex border-b border-gray-700">
+                <div class="tab-btn active" onclick="switchTab('stats')">📊 확률 분석</div>
+                <div class="tab-btn" onclick="switchTab('payout')">📜 배당표</div>
+            </div>
+
+            <div id="tab-stats" class="tab-content flex-1 p-4 overflow-y-auto">
+                <div class="mb-4">
+                    <h3 class="text-sm font-bold text-white mb-2">이론 vs 실험 확률</h3>
+                    <p class="text-[10px] text-gray-400 mb-4 leading-tight">
+                        <span class="text-blue-400 font-bold">파란색 막대</span>는 실제 시행 결과입니다.<br>
+                        점선은 이론적 확률(16.6%)입니다.<br>
+                        시행 횟수(n)가 커질수록 두 값의 차이는 줄어듭니다.
+                    </p>
+                    
+                    <div id="stats-bars" class="space-y-2 mb-2">
+                        </div>
+                    <div class="text-right text-[10px] text-gray-500">총 시행 횟수(n): <span id="total-rolls" class="text-white font-bold">0</span></div>
+                </div>
+
+                <div class="bg-gray-900 p-3 rounded border border-gray-600 mt-auto">
+                    <h4 class="text-xs font-bold text-green-400 mb-1">💡 생기부 활용 팁</h4>
+                    <ul class="text-[10px] text-gray-400 list-disc list-inside space-y-1">
+                        <li>큰 수의 법칙(Law of Large Numbers) 확인</li>
+                        <li>투자금 분배에 따른 위험 관리 분석</li>
+                        <li>독립 시행에서의 확률 분포 관찰</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="tab-payout" class="tab-content flex-1 p-4 overflow-y-auto hidden-screen">
+                <div class="text-xs text-gray-500 mb-3 text-center">확률이 낮은 사건일수록<br>높은 가중치(배당)가 부여됩니다.</div>
+                <div class="space-y-2 text-sm" id="payout-list">
+                    </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="end-modal" class="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center hidden-screen">
+        <h1 class="text-6xl font-title text-yellow-400 mb-4">FINISH!</h1>
+        <div class="text-center mb-8">
+            <p class="text-gray-400 text-xl">최종 자산</p>
+            <p class="text-7xl font-bold text-white mb-2">$<span id="final-score">0</span></p>
+            <p id="new-record-msg" class="text-green-400 font-bold hidden animate-pulse">✨ NEW HIGH SCORE! ✨</p>
+        </div>
+        <button onclick="location.reload()" class="px-10 py-4 bg-white text-black font-bold text-xl rounded-full hover:scale-105 transition">
+            다시 실험하기
+        </button>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. 데이터 설정
+        // ==========================================
+        const PAYOUTS = [
+            { name: "Yacht (5 Kind)", mult: 50.0, check: (d) => hasKind(d, 5) ? getKindVal(d,5) : null, desc: "P ≈ 0.08%" },
+            { name: "Large Straight", mult: 8.0, check: (d) => isLargeStraight(d) ? 5 : null, desc: "P ≈ 3.1%" },
+            { name: "4 of a Kind", mult: 6.0, check: (d) => hasKind(d, 4) ? getKindVal(d,4) : null, desc: "P ≈ 1.9%" },
+            { name: "Small Straight", mult: 4.0, check: (d) => isSmallStraight(d) ? 4 : null, desc: "부분집합" },
+            { name: "Full House", mult: 3.5, check: (d) => isFullHouse(d) ? getKindVal(d,3) : null, desc: "P ≈ 3.9%" },
+            { name: "3 of a Kind", mult: 2.0, check: (d) => hasKind(d, 3) ? getKindVal(d,3) : null, desc: "P ≈ 15.4%" },
+            { name: "Two Pair", mult: 1.5, check: (d) => isTwoPair(d) ? getTwoPairMax(d) : null, desc: "P ≈ 23.1%" },
+            { name: "One Pair", mult: 0.5, check: (d) => hasKind(d, 2) ? getKindVal(d,2) : null, desc: "P ≈ 46.3%" }
+        ];
+
+        const STATE = {
+            money: 1000,
+            round: 1,
+            maxRounds: 10, // 10라운드로 고정 (통계 표본 확보)
+            bet: 0,
+            
+            dice: [1, 2, 3, 4, 5],
+            locked: [false, false, false, false, false],
+            rollsLeft: 3,
+            
+            // 통계용
+            rollHistory: [0, 0, 0, 0, 0, 0],
+            totalRolls: 0,
+            
+            highScore: 0
+        };
+
+        // ==========================================
+        // 2. 초기화
+        // ==========================================
+        function init() {
+            // High Score 로드
+            const savedScore = localStorage.getItem('diceStatHighScore');
+            if(savedScore) STATE.highScore = parseInt(savedScore);
+            document.getElementById('high-score').innerText = STATE.highScore.toLocaleString();
+
+            renderPayouts();
+            renderStats();
+            updateUI();
+            setupBetSlider();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden-screen'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden-screen');
+        }
+
+        // ==========================================
+        // 3. 게임 플레이 (버그 수정됨)
+        // ==========================================
+        function setupBetSlider() {
+            const slider = document.getElementById('bet-slider');
+            slider.addEventListener('input', (e) => {
+                STATE.bet = parseInt(e.target.value);
+                document.getElementById('bet-amount-display').innerText = STATE.bet.toLocaleString();
+            });
+            slider.max = STATE.money;
+            slider.value = 0;
+            STATE.bet = 0;
+            document.getElementById('bet-amount-display').innerText = "0";
+        }
+
+        function setBetPercent(pct) {
+            STATE.bet = Math.floor(STATE.money * pct);
+            document.getElementById('bet-slider').value = STATE.bet;
+            document.getElementById('bet-amount-display').innerText = STATE.bet.toLocaleString();
+        }
+
+        function startGame() {
+            if(STATE.bet <= 0) { alert("투자는 1원 이상이어야 합니다."); return; }
+            if(STATE.bet > STATE.money) { alert("자금이 부족합니다."); return; } // 안전장치
+            
+            STATE.money -= STATE.bet;
+            
+            document.getElementById('screen-bet').classList.add('hidden-screen');
+            document.getElementById('screen-game').classList.remove('hidden-screen');
+            document.getElementById('current-bet').innerText = STATE.bet.toLocaleString();
+            
+            // 라운드 초기화
+            STATE.rollsLeft = 3;
+            STATE.dice = [1,2,3,4,5];
+            STATE.locked.fill(false);
+            document.querySelectorAll('.die').forEach(el => el.classList.remove('locked'));
+            
+            addLog(`ROUND ${STATE.round}: $${STATE.bet} 투자`);
+            updateUI();
+            rollDice(true);
+        }
+
+        function rollDice(force = false) {
+            // [버그 수정]: 강제 롤(첫 롤)이 아닐 때만 횟수 차감
+            if(!force) {
+                if(STATE.rollsLeft <= 0) return;
+                STATE.rollsLeft--;
+            }
+
+            const diceEls = document.querySelectorAll('.die');
+            diceEls.forEach((el, i) => { if(!STATE.locked[i]) el.classList.add('rolling'); });
+
+            setTimeout(() => {
+                // 순수 확률 (Fair Dice) 적용
+                STATE.dice = STATE.dice.map((v, i) => {
+                    if(STATE.locked[i]) return v;
+                    const res = Math.floor(Math.random() * 6) + 1;
+                    
+                    // 통계 수집
+                    STATE.rollHistory[res-1]++;
+                    STATE.totalRolls++;
+                    return res;
+                });
+                
+                diceEls.forEach((el, i) => {
+                    el.innerText = STATE.dice[i];
+                    el.classList.remove('rolling');
+                });
+                
+                evaluateHand();
+                updateUI();
+                renderStats(); // 실시간 통계 반영
+                
+                // UI 상태 제어
+                if(STATE.rollsLeft <= 0) {
+                    document.getElementById('roll-btn').classList.add('hidden-screen');
+                    document.getElementById('confirm-btn').classList.remove('hidden-screen');
+                } else {
+                    document.getElementById('roll-btn').classList.remove('hidden-screen');
+                    document.getElementById('confirm-btn').classList.add('hidden-screen');
+                }
+
+            }, 400);
+        }
+
+        function toggleLock(idx) {
+            if(STATE.rollsLeft === 3) return; // 첫 롤 전 잠금 불가
+            STATE.locked[idx] = !STATE.locked[idx];
+            document.querySelectorAll('.die')[idx].classList.toggle('locked');
+        }
+
+        // ==========================================
+        // 4. 족보 판정 (수학적 가중치)
+        // ==========================================
+        function evaluateHand() {
+            const d = STATE.dice;
+            let bestName = "No Pair (꽝)";
+            let bestMult = 0.0;
+            let desc = "";
+
+            for(const p of PAYOUTS) {
+                const val = p.check(d);
+                if(val !== null) {
+                    bestName = p.name;
+                    // 배수 = 기본 + (숫자 * 0.1) 가중치
+                    // 예: 66666 = 50 + 0.6 = 50.6배
+                    bestMult = p.mult + (val * 0.1);
+                    desc = `기본 x${p.mult} + 숫자보너스 +${(val*0.1).toFixed(1)}`;
+                    break;
+                }
+            }
+            
+            document.getElementById('hand-name').innerText = bestName;
+            document.getElementById('current-multiplier').innerText = `x${bestMult.toFixed(1)}`;
+            document.getElementById('mult-detail').innerText = desc;
+            
+            // 색상 효과
+            const el = document.getElementById('current-multiplier');
+            if(bestMult >= 10) el.className = "text-7xl font-black text-yellow-400 tracking-tighter";
+            else if(bestMult >= 2) el.className = "text-7xl font-black text-green-400 tracking-tighter";
+            else if(bestMult < 1) el.className = "text-7xl font-black text-red-500 tracking-tighter";
+            else el.className = "text-7xl font-black text-white tracking-tighter";
+
+            return bestMult;
+        }
+
+        // 족보 함수들
+        function hasKind(d, n) { const c={}; d.forEach(x=>c[x]=(c[x]||0)+1); return Object.values(c).some(v=>v>=n); }
+        function getKindVal(d, n) { const c={}; d.forEach(x=>c[x]=(c[x]||0)+1); for(let [k,v] of Object.entries(c)) if(v>=n) return parseInt(k); return 0; }
+        function isLargeStraight(d) { const u=[...new Set(d)].sort((a,b)=>a-b).join(''); return u.includes('12345') || u.includes('23456'); }
+        function isSmallStraight(d) { const u=[...new Set(d)].sort((a,b)=>a-b).join(''); return u.includes('1234') || u.includes('2345') || u.includes('3456'); }
+        function isFullHouse(d) { const c={}; d.forEach(x=>c[x]=(c[x]||0)+1); const v=Object.values(c); return (v.includes(3)&&v.includes(2))||v.includes(5); }
+        function isTwoPair(d) { const c={}; d.forEach(x=>c[x]=(c[x]||0)+1); return Object.values(c).filter(v=>v>=2).length>=2; }
+        function getTwoPairMax(d) { const c={}; d.forEach(x=>c[x]=(c[x]||0)+1); let m=0; for(let [k,v] of Object.entries(c)) if(v>=2) m=Math.max(m,parseInt(k)); return m; }
+
+        // ==========================================
+        // 5. 통계 렌더링 (생기부 핵심)
+        // ==========================================
+        function renderStats() {
+            const container = document.getElementById('stats-bars');
+            const totalR = STATE.totalRolls || 1; 
+            const theoretical = 16.66; // 1/6
+
+            container.innerHTML = STATE.rollHistory.map((count, i) => {
+                const expPct = (count / totalR) * 100;
+                // 막대 길이 (최대 80%로 제한하여 UI 깨짐 방지)
+                const barWidth = Math.min(100, expPct); 
+                
+                return `
+                <div class="stat-row">
+                    <div class="stat-label text-gray-400">${i+1}</div>
+                    <div class="stat-bar-bg">
+                        <div class="stat-bar-theo" style="width: 16.66%"></div>
+                        <div class="stat-bar-exp" style="width: ${barWidth}%"></div>
+                    </div>
+                    <div class="w-20 text-right text-[9px] text-gray-400">
+                        ${expPct.toFixed(1)}% (n=${count})
+                    </div>
+                </div>`;
+            }).join('');
+
+            document.getElementById('total-rolls').innerText = STATE.totalRolls;
+        }
+
+        // ==========================================
+        // 6. 결과 및 진행
+        // ==========================================
+        function finishRound() {
+            const mult = evaluateHand();
+            const ret = Math.floor(STATE.bet * mult);
+            STATE.money += ret;
+
+            // 최고 기록 갱신
+            if(STATE.money > STATE.highScore) {
+                STATE.highScore = STATE.money;
+                localStorage.setItem('diceStatHighScore', STATE.highScore);
+                document.getElementById('high-score').innerText = STATE.highScore.toLocaleString();
+            }
+
+            document.getElementById('screen-game').classList.add('hidden-screen');
+            document.getElementById('screen-result').classList.remove('hidden-screen');
+            
+            document.getElementById('result-mult').innerText = `x${mult.toFixed(1)}`;
+            document.getElementById('res-return').innerText = ret.toLocaleString();
+            
+            const net = ret - STATE.bet;
+            const netEl = document.getElementById('res-net');
+            netEl.innerText = (net >= 0 ? "+" : "") + net.toLocaleString();
+            netEl.className = net >= 0 ? "text-green-400 font-bold" : "text-red-400 font-bold";
+            
+            addLog(`수익 확정: ${net>=0?"+":""}$${net} (ROI ${(mult*100).toFixed(0)}%)`);
+        }
+
+        function resetRound() {
+            STATE.round++;
+            
+            if(STATE.round > STATE.maxRounds || STATE.money <= 0) {
+                // 게임 종료
+                document.getElementById('end-modal').classList.remove('hidden-screen');
+                document.getElementById('final-score').innerText = STATE.money.toLocaleString();
+                
+                if(STATE.money >= STATE.highScore && STATE.money > 1000) {
+                    document.getElementById('new-record-msg').classList.remove('hidden');
+                }
+                return;
+            }
+
+            document.getElementById('screen-result').classList.add('hidden-screen');
+            document.getElementById('screen-bet').classList.remove('hidden-screen');
+            setupBetSlider();
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('player-money').innerText = STATE.money.toLocaleString();
+            document.getElementById('round-num').innerText = STATE.round;
+            document.getElementById('rolls-left-display').innerText = STATE.rollsLeft;
+            
+            const s = document.getElementById('bet-slider');
+            s.max = STATE.money;
+            if(parseInt(s.value) > STATE.money) s.value = STATE.money;
+        }
+
+        function renderPayouts() {
+            document.getElementById('payout-list').innerHTML = PAYOUTS.map(p => 
+                `<div class="flex justify-between bg-gray-700 p-2 rounded mb-1">
+                    <div><span class="text-white font-bold">${p.name}</span><div class="text-[10px] text-gray-400">${p.desc}</div></div>
+                    <span class="${p.mult>=2?'text-green-400':'text-gray-300'}">x${p.mult}</span>
+                </div>`
+            ).join('');
+        }
+
+        function addLog(msg) {
+            const log = document.getElementById('game-log');
+            const d = document.createElement('div');
+            d.innerText = msg;
+            log.prepend(d);
+        }
+
+        init();
+    </script>
+</body>
+</html>
