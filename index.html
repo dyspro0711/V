@@ -3,566 +3,573 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎲 P2P Dice Battle: Probability & Stats</title>
+    <title>🎲 Dice Vestor: Multi-Lab</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Roboto Mono', monospace; user-select: none; }
         .font-title { font-family: 'Black Han Sans', sans-serif; }
         .hidden-screen { display: none !important; }
         
-        /* 주사위 스타일 */
+        /* 주사위 */
         .die {
-            width: 60px; height: 60px;
-            background: linear-gradient(145deg, #ffffff, #e2e8f0);
-            color: #1e293b;
-            border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 2rem; font-weight: bold;
-            box-shadow: 0 4px 0 #94a3b8;
-            cursor: pointer;
-            transition: transform 0.1s;
+            width: 50px; height: 50px;
+            background: linear-gradient(145deg, #ffffff, #e2e8f0); color: #1e293b;
+            border-radius: 10px; display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; font-weight: bold; box-shadow: 0 4px 0 #94a3b8;
+            cursor: pointer; transition: transform 0.1s;
         }
         .die.locked { background: #ef4444; color: white; box-shadow: 0 4px 0 #991b1b; transform: translateY(4px); }
+        .die-lg { width: 80px; height: 80px; font-size: 2.5rem; } /* 큰 주사위 */
         .rolling { animation: shake 0.4s infinite; }
         @keyframes shake { 0% { transform: rotate(0deg); } 25% { transform: rotate(10deg); } 75% { transform: rotate(-10deg); } 100% { transform: rotate(0deg); } }
 
-        /* 턴 표시기 */
-        .turn-indicator { padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
-        .my-turn { background-color: #22c55e; color: #000; animation: pulse 1.5s infinite; }
-        .opp-turn { background-color: #ef4444; color: #fff; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
+        /* 플레이어 카드 */
+        .player-card { border: 2px solid #334155; padding: 10px; border-radius: 10px; opacity: 0.7; transition: all 0.3s; }
+        .player-card.active-turn { border-color: #fbbf24; background-color: #334155; opacity: 1; transform: scale(1.05); box-shadow: 0 0 15px rgba(251, 191, 36, 0.3); }
+        .player-card.is-me { border-color: #3b82f6; }
     </style>
 </head>
 <body class="h-screen flex items-center justify-center overflow-hidden">
 
-    <div id="screen-lobby" class="w-full max-w-md p-8 bg-gray-800 rounded-2xl border border-gray-700 shadow-2xl text-center">
-        <h1 class="text-4xl font-title text-yellow-400 mb-2">🎲 DICE BATTLE</h1>
-        <p class="text-gray-400 text-xs mb-8">P2P Probability Experiment</p>
-
-        <div class="bg-gray-900 p-4 rounded-xl mb-6">
-            <p class="text-sm text-gray-400 mb-1">나의 ID (친구에게 공유)</p>
-            <div class="flex items-center justify-center gap-2">
-                <span id="my-id" class="text-xl font-bold text-white select-all">Connecting...</span>
-                <button onclick="copyId()" class="text-xs bg-gray-700 px-2 py-1 rounded hover:bg-gray-600">복사</button>
-            </div>
-        </div>
-
+    <div id="screen-menu" class="w-full max-w-md p-8 bg-gray-800 rounded-2xl border border-gray-700 shadow-2xl text-center">
+        <h1 class="text-5xl font-title text-yellow-400 mb-2">🎲 DICE VESTOR</h1>
+        <p class="text-gray-400 mb-8">확률과 통계 & 투자 시뮬레이션</p>
+        
         <div class="space-y-4">
-            <div>
-                <input type="text" id="dest-id" placeholder="친구 ID 입력" class="w-full p-3 bg-gray-700 rounded text-center text-white focus:outline-none focus:ring-2 focus:ring-yellow-400">
-            </div>
-            <button onclick="connectToPeer()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition">
-                연결하기 (Connect)
+            <button onclick="startSinglePlayer()" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-lg transition">
+                📊 통계 실험실 (Single)
+                <span class="block text-xs font-normal opacity-80">대수의 법칙 검증 및 데이터 수집</span>
             </button>
-        </div>
-        <p id="conn-status" class="mt-4 text-xs text-yellow-500 h-4"></p>
-    </div>
-
-    <div id="screen-setup" class="hidden-screen w-full max-w-md p-8 bg-gray-800 rounded-2xl border border-gray-700 shadow-2xl text-center">
-        <h2 class="text-2xl font-bold text-white mb-6">게임 설정</h2>
-        <div class="mb-8">
-            <p class="text-gray-400 mb-2">총 라운드 수</p>
-            <div class="flex justify-center gap-4">
-                <button onclick="setRounds(3)" class="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600 focus:bg-blue-600 text-white font-bold transition round-btn" data-val="3">3</button>
-                <button onclick="setRounds(5)" class="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600 focus:bg-blue-600 text-white font-bold transition round-btn" data-val="5">5</button>
-                <button onclick="setRounds(10)" class="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600 focus:bg-blue-600 text-white font-bold transition round-btn" data-val="10">10</button>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="setupMultiplayer('host')" class="py-4 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl text-lg transition">
+                    방 만들기 (Host)
+                </button>
+                <button onclick="setupMultiplayer('guest')" class="py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-lg transition">
+                    참가하기 (Guest)
+                </button>
             </div>
         </div>
-        <button onclick="startGame()" class="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl text-xl transition">
-            게임 시작!
-        </button>
     </div>
 
-    <div id="screen-wait" class="hidden-screen w-full max-w-md p-8 bg-gray-800 rounded-2xl border border-gray-700 shadow-2xl text-center">
-        <div class="animate-spin text-4xl mb-4">⏳</div>
-        <h2 class="text-xl font-bold text-white">방장이 설정 중입니다...</h2>
-        <p class="text-gray-400 text-sm mt-2">잠시만 기다려주세요.</p>
+    <div id="screen-single" class="hidden-screen w-full max-w-6xl h-[800px] flex gap-4 p-4">
+        <div class="w-1/3 bg-gray-800 p-6 rounded-2xl border border-gray-700 flex flex-col">
+            <h2 class="text-2xl font-bold text-white mb-4">🧪 실험 제어판</h2>
+            <div class="space-y-4">
+                <button onclick="singleRoll()" class="w-full py-3 bg-blue-600 text-white font-bold rounded">1회 시행 (Roll)</button>
+                <button onclick="singleAutoRoll(100)" class="w-full py-3 bg-indigo-600 text-white font-bold rounded">100회 자동 시행</button>
+                <button onclick="resetStats()" class="w-full py-3 bg-red-900 text-red-200 font-bold rounded">데이터 초기화</button>
+                <div class="bg-gray-900 p-4 rounded mt-4">
+                    <p class="text-gray-400 text-sm">총 시행 횟수 (n)</p>
+                    <div class="text-3xl font-bold text-white" id="single-total">0</div>
+                </div>
+            </div>
+            <button onclick="location.reload()" class="mt-auto py-2 text-gray-500 hover:text-white">메인으로 돌아가기</button>
+        </div>
+        <div class="w-2/3 bg-gray-900 p-6 rounded-2xl border border-gray-700 flex flex-col">
+            <h3 class="text-xl font-bold text-gray-300 mb-4">📈 확률 분포 그래프</h3>
+            <div class="flex-1 bg-gray-800 rounded-xl p-4 relative">
+                <canvas id="statChart"></canvas>
+            </div>
+            <p class="text-center text-xs text-gray-500 mt-2">이론적 확률(16.6%) vs 실험적 확률 비교</p>
+        </div>
     </div>
 
-    <div id="screen-game" class="hidden-screen w-full max-w-4xl p-4 flex gap-4 h-[600px]">
+    <div id="screen-lobby" class="hidden-screen w-full max-w-md p-8 bg-gray-800 rounded-2xl border border-gray-700 text-center">
+        <h2 class="text-2xl font-bold text-white mb-4" id="lobby-title">대기실</h2>
         
-        <div class="flex-1 bg-gray-800 rounded-2xl border-2 border-blue-500/50 p-4 flex flex-col relative" id="p1-panel">
-            <div class="absolute top-4 left-4 bg-blue-600 text-white text-xs px-2 py-1 rounded font-bold">ME</div>
-            <div class="text-center mt-6">
-                <p class="text-gray-400 text-sm">자산</p>
-                <div class="text-3xl font-bold text-white">$<span id="p1-money">1,000</span></div>
+        <div id="host-info" class="hidden-screen mb-6">
+            <p class="text-sm text-gray-400">초대 코드 (ID)</p>
+            <div class="flex items-center justify-center gap-2 bg-gray-900 p-2 rounded mb-2">
+                <span id="my-peer-id" class="text-xl font-bold text-yellow-400 select-all">...</span>
+                <button onclick="copyId()" class="text-xs bg-gray-700 px-2 py-1 rounded">복사</button>
             </div>
+            <p class="text-xs text-gray-500">친구들에게 이 코드를 알려주세요.</p>
+        </div>
+
+        <div id="guest-input" class="hidden-screen mb-6">
+            <input type="text" id="host-id-input" placeholder="방장 ID 입력" class="w-full p-3 bg-gray-700 rounded text-center text-white mb-2">
+            <button onclick="joinRoom()" class="w-full py-2 bg-purple-600 font-bold rounded">연결하기</button>
+        </div>
+
+        <div class="bg-gray-700 p-4 rounded-xl mb-6 text-left">
+            <p class="text-xs text-gray-400 mb-2">참가자 목록 (<span id="player-count">1</span>/4)</p>
+            <ul id="player-list" class="space-y-1 text-sm font-bold text-white">
+                </ul>
+        </div>
+
+        <div id="host-controls" class="hidden-screen space-y-2">
+            <div class="flex justify-center gap-2 mb-4">
+                <button onclick="setRounds(3)" class="round-btn bg-blue-600 px-3 py-1 rounded text-xs text-white">3R</button>
+                <button onclick="setRounds(5)" class="round-btn bg-gray-600 px-3 py-1 rounded text-xs text-white">5R</button>
+                <button onclick="setRounds(10)" class="round-btn bg-gray-600 px-3 py-1 rounded text-xs text-white">10R</button>
+            </div>
+            <button onclick="broadcastStart()" class="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl">게임 시작</button>
+        </div>
+        <div id="guest-waiting" class="hidden-screen text-yellow-400 animate-pulse font-bold">
+            방장이 게임을 시작하기를 기다리는 중...
+        </div>
+    </div>
+
+    <div id="screen-multi-game" class="hidden-screen w-full max-w-6xl p-4 flex gap-4 h-[700px]">
+        
+        <div class="w-2/3 bg-gray-800 rounded-2xl border-2 border-gray-700 p-6 flex flex-col relative">
+            <div class="flex justify-between items-center mb-10">
+                <div class="text-xs text-gray-400">ROUND <span id="multi-round">1</span></div>
+                <div id="turn-msg" class="text-xl font-bold text-white bg-gray-700 px-4 py-1 rounded-full">게임 대기중</div>
+            </div>
+
+            <div class="flex-1 flex flex-col items-center justify-center">
+                <div class="flex gap-4 mb-8" id="my-dice-container">
+                    <div class="die die-lg" onclick="toggleLock(0)">1</div>
+                    <div class="die die-lg" onclick="toggleLock(1)">2</div>
+                    <div class="die die-lg" onclick="toggleLock(2)">3</div>
+                    <div class="die die-lg" onclick="toggleLock(3)">4</div>
+                    <div class="die die-lg" onclick="toggleLock(4)">5</div>
+                </div>
+                <div class="text-4xl font-bold text-yellow-400 h-10" id="my-hand-rank">-</div>
+            </div>
+
+            <div id="my-controls" class="mt-auto opacity-50 pointer-events-none transition">
+                <div class="mb-4">
+                    <p class="text-xs text-gray-400 mb-1">투자금 설정: $<span id="my-bet-display">0</span></p>
+                    <input type="range" id="my-bet-slider" class="w-full accent-green-500 h-2 bg-gray-600 rounded-lg cursor-pointer" min="0" max="1000">
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="multiRoll()" class="flex-1 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xl">ROLL (<span id="my-rolls">3</span>)</button>
+                    <button onclick="multiKeep()" class="flex-1 py-4 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl text-xl">KEEP</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-1/3 bg-gray-900 rounded-2xl p-4 border border-gray-700 flex flex-col">
+            <h3 class="text-sm font-bold text-gray-400 mb-4">PLAYERS</h3>
+            <div id="players-status" class="space-y-3 flex-1 overflow-y-auto">
+                </div>
             
-            <div class="flex-1 flex flex-col items-center justify-center">
-                <div class="flex gap-2 mb-6" id="p1-dice">
-                    <div class="die">1</div><div class="die">2</div><div class="die">3</div><div class="die">4</div><div class="die">5</div>
-                </div>
-                <div class="text-xl font-bold text-yellow-400 h-8" id="p1-hand">-</div>
-            </div>
-
-            <div id="p1-controls" class="mt-auto opacity-50 pointer-events-none transition-opacity duration-300">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs text-gray-400">투자금: $<span id="p1-bet-display">0</span></span>
-                    <input type="range" id="p1-bet-slider" min="0" max="1000" value="0" class="w-32 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer">
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="actionRoll()" class="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-sm">ROLL (<span id="p1-rolls">3</span>)</button>
-                    <button onclick="actionKeep()" class="flex-1 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg text-sm">KEEP</button>
-                </div>
+            <div class="mt-4 bg-black/50 p-3 rounded text-[10px] text-gray-500 h-32 overflow-y-auto font-mono" id="multi-log">
+                > 접속 완료
             </div>
         </div>
-
-        <div class="w-32 flex flex-col items-center justify-center gap-4">
-            <div class="bg-gray-900 px-3 py-2 rounded-full border border-gray-600 text-xs font-bold text-gray-300">
-                ROUND <span id="current-round">1</span>/<span id="max-rounds">3</span>
-            </div>
-            <div id="turn-indicator" class="turn-indicator my-turn">MY TURN</div>
-            <div class="h-px w-full bg-gray-700"></div>
-            <div class="text-[10px] text-gray-500 text-center" id="game-log">게임 시작 대기중...</div>
-        </div>
-
-        <div class="flex-1 bg-gray-800 rounded-2xl border border-gray-700 p-4 flex flex-col opacity-80" id="p2-panel">
-            <div class="absolute top-4 right-4 bg-red-600 text-white text-xs px-2 py-1 rounded font-bold">OPPONENT</div>
-            <div class="text-center mt-6">
-                <p class="text-gray-400 text-sm">자산</p>
-                <div class="text-3xl font-bold text-white">$<span id="p2-money">1,000</span></div>
-            </div>
-            <div class="flex-1 flex flex-col items-center justify-center">
-                <div class="flex gap-2 mb-6" id="p2-dice">
-                    <div class="die cursor-default">?</div><div class="die cursor-default">?</div><div class="die cursor-default">?</div><div class="die cursor-default">?</div><div class="die cursor-default">?</div>
-                </div>
-                <div class="text-xl font-bold text-yellow-400 h-8" id="p2-hand">-</div>
-                <p class="text-xs text-gray-500 mt-2 animate-pulse" id="p2-status">대기 중...</p>
-            </div>
-        </div>
-
     </div>
 
-    <div id="screen-result" class="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center hidden-screen">
-        <h1 class="text-8xl font-title mb-4" id="result-title">VICTORY</h1>
-        <p class="text-2xl text-gray-300 mb-8" id="result-msg">자산 차이: $500</p>
-        
-        <div class="flex gap-8 mb-10 text-center">
-            <div>
-                <p class="text-blue-400 font-bold">나 (ME)</p>
-                <p class="text-4xl text-white">$<span id="final-p1">0</span></p>
+    <div id="result-modal" class="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center hidden-screen">
+        <h1 class="text-6xl font-title text-yellow-400 mb-8">GAME OVER</h1>
+        <div id="rankings" class="w-full max-w-md space-y-4 mb-8">
             </div>
-            <div class="text-4xl text-gray-600 font-black">VS</div>
-            <div>
-                <p class="text-red-400 font-bold">상대 (OPP)</p>
-                <p class="text-4xl text-white">$<span id="final-p2">0</span></p>
-            </div>
-        </div>
-
-        <button onclick="location.reload()" class="px-8 py-3 bg-white text-black font-bold rounded-full hover:scale-105 transition">
-            로비로 돌아가기
-        </button>
+        <button onclick="location.reload()" class="px-8 py-3 bg-white text-black font-bold rounded-full">로비로 나가기</button>
     </div>
 
     <script>
         // ==========================================
-        // 1. P2P 네트워크 설정 (PeerJS)
+        // 1. 공통 데이터 및 유틸
+        // ==========================================
+        const HANDS = [
+            { name: "Yacht", mult: 10, check: d=>hasKind(d,5) },
+            { name: "4 Kind", mult: 5, check: d=>hasKind(d,4) },
+            { name: "Full House", mult: 3, check: d=>isFullHouse(d) },
+            { name: "Straight", mult: 2, check: d=>isStraight(d) },
+            { name: "3 Kind", mult: 1.5, check: d=>hasKind(d,3) },
+            { name: "2 Pair", mult: 1.0, check: d=>isTwoPair(d) },
+            { name: "1 Pair", mult: 0.5, check: d=>hasKind(d,2) },
+            { name: "No Pair", mult: 0, check: d=>true }
+        ];
+        function evaluate(d) { return HANDS.find(h => h.check(d)); }
+        function hasKind(d,n){const c={};d.forEach(x=>c[x]=(c[x]||0)+1);return Object.values(c).some(v=>v>=n);}
+        function isFullHouse(d){const c={};d.forEach(x=>c[x]=(c[x]||0)+1);const v=Object.values(c);return (v.includes(3)&&v.includes(2))||v.includes(5);}
+        function isStraight(d){const u=[...new Set(d)].sort().join('');return u.includes('1234')||u.includes('2345')||u.includes('3456');} // Small Straight 기준
+        function isTwoPair(d){const c={};d.forEach(x=>c[x]=(c[x]||0)+1);return Object.values(c).filter(v=>v>=2).length>=2;}
+
+        // ==========================================
+        // 2. 모드 1: 싱글 (통계 실험)
+        // ==========================================
+        let singleStats = [0,0,0,0,0,0];
+        let singleTotal = 0;
+        let myChart = null;
+
+        function startSinglePlayer() {
+            document.getElementById('screen-menu').classList.add('hidden-screen');
+            document.getElementById('screen-single').classList.remove('hidden-screen');
+            initChart();
+        }
+
+        function singleRoll() {
+            const val = Math.floor(Math.random()*6);
+            singleStats[val]++;
+            singleTotal++;
+            updateChart();
+        }
+
+        function singleAutoRoll(n) {
+            for(let i=0; i<n; i++) singleRoll();
+        }
+
+        function resetStats() {
+            singleStats = [0,0,0,0,0,0];
+            singleTotal = 0;
+            updateChart();
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('statChart').getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['1', '2', '3', '4', '5', '6'],
+                    datasets: [{
+                        label: '실험적 확률 (%)',
+                        data: [0,0,0,0,0,0],
+                        backgroundColor: '#3b82f6'
+                    }, {
+                        type: 'line',
+                        label: '이론적 확률 (16.6%)',
+                        data: [16.6, 16.6, 16.6, 16.6, 16.6, 16.6],
+                        borderColor: '#fbbf24',
+                        borderDash: [5, 5],
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 50 } },
+                    plugins: { legend: { labels: { color: 'white' } } }
+                }
+            });
+        }
+
+        function updateChart() {
+            document.getElementById('single-total').innerText = singleTotal;
+            if(singleTotal === 0) return;
+            const percentages = singleStats.map(v => (v/singleTotal*100).toFixed(1));
+            myChart.data.datasets[0].data = percentages;
+            myChart.update();
+        }
+
+
+        // ==========================================
+        // 3. 모드 2: 멀티플레이 (P2P Host-Guest)
         // ==========================================
         let peer = null;
-        let conn = null;
+        let connections = []; // Host용: 연결된 Peer들
+        let hostConn = null;  // Guest용: Host와의 연결
         let myId = null;
         let isHost = false;
-
-        // 게임 상태
-        const STATE = {
+        
+        let GAME = {
+            players: [], // { id, name, money, dice, rolls, hand, isTurn }
             round: 1,
             maxRounds: 3,
-            turn: 'p1', // 'p1'(나), 'p2'(상대) - 화면 기준
-            
-            p1: { money: 1000, dice: [1,2,3,4,5], locked: [false,false,false,false,false], rolls: 3, bet: 0 },
-            p2: { money: 1000, dice: [1,2,3,4,5], hand: '-' }
+            currentTurnIndex: 0,
+            state: 'lobby' // lobby, playing, finished
         };
 
-        // 초기화
-        peer = new Peer(); 
-        peer.on('open', id => {
-            myId = id;
-            document.getElementById('my-id').innerText = id;
-        });
-
-        // 접속 받음 (Host가 됨)
-        peer.on('connection', c => {
-            if(conn) return; // 이미 연결됨
-            conn = c;
-            isHost = true;
-            setupConnection();
-            document.getElementById('conn-status').innerText = "상대방이 접속했습니다!";
-            setTimeout(() => {
-                showScreen('screen-setup');
-            }, 1000);
-        });
-
-        // 접속 시도 (Guest)
-        function connectToPeer() {
-            const destId = document.getElementById('dest-id').value;
-            if(!destId) return alert("ID 입력 필요");
+        function setupMultiplayer(role) {
+            document.getElementById('screen-menu').classList.add('hidden-screen');
+            document.getElementById('screen-lobby').classList.remove('hidden-screen');
             
-            conn = peer.connect(destId);
-            conn.on('open', () => {
-                isHost = false;
-                setupConnection();
-                document.getElementById('conn-status').innerText = "연결 성공! 방장이 설정 중...";
-                showScreen('screen-wait');
+            peer = new Peer(); // ID 자동 생성
+            
+            peer.on('open', id => {
+                myId = id;
+                document.getElementById('my-peer-id').innerText = id;
+                
+                if (role === 'host') {
+                    isHost = true;
+                    document.getElementById('host-info').classList.remove('hidden-screen');
+                    document.getElementById('host-controls').classList.remove('hidden-screen');
+                    // 나 자신을 플레이어 목록에 추가
+                    GAME.players.push({ id: myId, name: "HOST (나)", money: 1000, dice:[1,1,1,1,1], rolls:3, bet:0 });
+                    updateLobbyUI();
+                } else {
+                    document.getElementById('guest-input').classList.remove('hidden-screen');
+                    document.getElementById('guest-waiting').classList.remove('hidden-screen');
+                }
+            });
+
+            peer.on('connection', conn => {
+                if (isHost) {
+                    // Host: 접속자 처리
+                    connections.push(conn);
+                    setupDataHandler(conn);
+                    
+                    // 새 플레이어 등록
+                    const newPlayer = { id: conn.peer, name: `Player ${GAME.players.length + 1}`, money: 1000, dice:[1,1,1,1,1], rolls:3, bet:0 };
+                    GAME.players.push(newPlayer);
+                    
+                    // 전체 브로드캐스트 (로비 갱신)
+                    broadcast({ type: 'LOBBY_UPDATE', players: GAME.players });
+                    updateLobbyUI();
+                } else {
+                    // Guest: Host 접속 시 (보통 반대 방향이라 여기 안옴, 혹시나 양방향이면 사용)
+                }
+            });
+        }
+
+        function joinRoom() {
+            const hostId = document.getElementById('host-id-input').value;
+            if (!hostId) return alert("ID를 입력하세요");
+            
+            hostConn = peer.connect(hostId);
+            hostConn.on('open', () => {
+                document.getElementById('guest-input').classList.add('hidden-screen'); // 연결되면 입력창 숨김
+                setupDataHandler(hostConn);
             });
         }
 
         function copyId() {
-            navigator.clipboard.writeText(myId).then(() => alert("ID 복사됨!"));
+            navigator.clipboard.writeText(myId);
+            alert("ID 복사됨!");
         }
 
-        // 데이터 통신 처리
-        function setupConnection() {
+        // --- 데이터 처리 (통신) ---
+        function setupDataHandler(conn) {
             conn.on('data', data => {
-                console.log("Recv:", data);
-                handleData(data);
+                // console.log("Received:", data);
+                
+                if (data.type === 'LOBBY_UPDATE') {
+                    GAME.players = data.players;
+                    updateLobbyUI();
+                }
+                else if (data.type === 'GAME_START') {
+                    GAME = data.gameState;
+                    initGameUI();
+                }
+                else if (data.type === 'STATE_UPDATE') {
+                    GAME = data.gameState;
+                    updateGameUI();
+                }
+                else if (data.type === 'GAME_OVER') {
+                    showResult(data.rankings);
+                }
+                // Host 전용: 클라이언트 행동 수신
+                else if (isHost && data.type === 'ACTION') {
+                    handlePlayerAction(data.senderId, data.action, data.payload);
+                }
             });
         }
 
-        function sendData(type, payload) {
-            if(conn && conn.open) conn.send({ type, payload });
-        }
-
-        // ==========================================
-        // 2. 게임 로직 (핸들러)
-        // ==========================================
-        function handleData(data) {
-            switch(data.type) {
-                // [공통] 게임 시작
-                case 'START_GAME':
-                    STATE.maxRounds = data.payload.rounds;
-                    // 선공 결정 (Host가 정해서 보냄)
-                    const isMyTurn = data.payload.firstTurn === myId;
-                    STATE.turn = isMyTurn ? 'p1' : 'p2'; // 내 기준 p1은 항상 나
-                    startGameUI();
-                    updateTurnUI();
-                    break;
-
-                // [상대방 행동] 주사위 굴림
-                case 'OPP_ROLL':
-                    // 상대방 주사위 애니메이션 & 결과 표시
-                    animateOpponentDice(data.payload.dice);
-                    document.getElementById('p2-status').innerText = `남은 롤: ${data.payload.rolls}`;
-                    break;
-
-                // [상대방 행동] 턴 종료 (점수 확정)
-                case 'OPP_END_TURN':
-                    STATE.p2.money = data.payload.money;
-                    STATE.p2.hand = data.payload.hand;
-                    document.getElementById('p2-money').innerText = STATE.p2.money.toLocaleString();
-                    document.getElementById('p2-hand').innerText = STATE.p2.hand;
-                    document.getElementById('game-log').innerText = `상대방 턴 종료: ${data.payload.profit > 0 ? '+' : ''}$${data.payload.profit}`;
-                    
-                    // 내 턴 시작
-                    if (data.payload.nextRound) {
-                        nextRound(); // 라운드 변경
-                    }
-                    STATE.turn = 'p1';
-                    resetMyTurn(); // 내 주사위/롤 초기화
-                    updateTurnUI();
-                    break;
-                
-                // [공통] 게임 종료
-                case 'GAME_OVER':
-                    showResult(data.payload);
-                    break;
+        function broadcast(msg) {
+            if (isHost) {
+                connections.forEach(c => c.send(msg));
             }
         }
 
-        // ==========================================
-        // 3. 게임 진행 (Action)
-        // ==========================================
-        
+        function sendToHost(type, payload) {
+            if (isHost) {
+                // 내가 Host면 직접 처리
+                handlePlayerAction(myId, type, payload);
+            } else {
+                hostConn.send({ type: 'ACTION', senderId: myId, action: type, payload: payload });
+            }
+        }
+
+        // --- 로비 UI ---
+        function updateLobbyUI() {
+            const list = document.getElementById('player-list');
+            list.innerHTML = GAME.players.map(p => 
+                `<li class="${p.id === myId ? 'text-yellow-400' : ''}">${p.name} ${p.id===myId?'(나)':''}</li>`
+            ).join('');
+            document.getElementById('player-count').innerText = GAME.players.length;
+        }
+
         function setRounds(n) {
-            // 버튼 스타일
+            GAME.maxRounds = n;
+            // 버튼 스타일 갱신
             document.querySelectorAll('.round-btn').forEach(b => b.classList.remove('bg-blue-600'));
             event.target.classList.add('bg-blue-600');
-            STATE.maxRounds = n;
         }
 
-        function startGame() {
-            // Host가 시작 신호 보냄
-            // 랜덤으로 선공 결정 (50%)
-            const firstTurnId = Math.random() < 0.5 ? myId : conn.peer;
-            
-            const payload = { rounds: STATE.maxRounds, firstTurn: firstTurnId };
-            sendData('START_GAME', payload);
-            
-            // 나도 시작 처리
-            const isMyTurn = firstTurnId === myId;
-            STATE.turn = isMyTurn ? 'p1' : 'p2';
-            startGameUI();
-            updateTurnUI();
-        }
-
-        function startGameUI() {
-            showScreen('screen-game');
-            document.getElementById('max-rounds').innerText = STATE.maxRounds;
-            setupBetSlider();
-            renderMyDice();
-        }
-
-        // --- 내 턴 행동 ---
-        function actionRoll() {
-            if(STATE.p1.rolls <= 0) return;
-            if(STATE.p1.bet <= 0) return alert("투자금을 설정하세요 (최소 1원)");
-
-            STATE.p1.rolls--;
-            
-            // 굴리기 애니메이션
-            const diceEls = document.querySelectorAll('#p1-dice .die');
-            diceEls.forEach((el, i) => { if(!STATE.p1.locked[i]) el.classList.add('rolling'); });
-
-            setTimeout(() => {
-                // 값 생성 (로컬에서 생성 후 전송 - 신뢰 기반)
-                STATE.p1.dice = STATE.p1.dice.map((v, i) => STATE.p1.locked[i] ? v : Math.floor(Math.random()*6)+1);
-                
-                renderMyDice();
-                
-                // 족보 계산
-                const res = evaluateHand(STATE.p1.dice);
-                document.getElementById('p1-hand').innerText = `${res.name} (x${res.mult})`;
-
-                // 상대에게 전송
-                sendData('OPP_ROLL', { dice: STATE.p1.dice, rolls: STATE.p1.rolls });
-                
-                document.getElementById('p1-rolls').innerText = STATE.p1.rolls;
-                
-                // 베팅 슬라이더 잠금 (첫 롤 이후)
-                document.getElementById('p1-bet-slider').disabled = true;
-
-                if(STATE.p1.rolls <= 0) {
-                    // 강제 종료 (잠시 후)
-                    // setTimeout(actionKeep, 1500); 
-                    // -> 유저가 직접 KEEP 누르게 유도
-                }
-            }, 500);
-        }
-
-        function actionKeep() {
-            if(STATE.p1.bet <= 0 && STATE.p1.rolls === 3) return alert("투자를 하고 주사위를 굴리세요.");
-
-            // 정산
-            const res = evaluateHand(STATE.p1.dice);
-            const profit = Math.floor(STATE.p1.bet * res.mult) - STATE.p1.bet; // 순수익
-            
-            STATE.p1.money += profit; // 원금은 그대로 두고 수익만 더함 (손해면 뺌)
-            // *수정: 원금은 이미 갖고있음. 
-            // 예: 100원 베팅. 0배 -> 100원 잃음 (-100). 
-            // 예: 100원 베팅. 2배 -> 200원 받음 (+100).
-            // 로직: money = money - bet + (bet * mult)
-            STATE.p1.money = STATE.p1.money - STATE.p1.bet + Math.floor(STATE.p1.bet * res.mult);
-
-            document.getElementById('p1-money').innerText = STATE.p1.money.toLocaleString();
-
-            // 라운드 체크
-            let isNextRound = false;
-            // 만약 내가 후공이었다면 라운드 종료
-            // (간단히: p1, p2가 한번씩 하면 라운드++ 인데 동기화 복잡하므로 
-            //  각자 턴 끝낼때마다 상대에게 턴 넘김. 라운드 관리는 Host가? 
-            //  -> 단순화: 내가 선공이었으면 상대가 후공. 상대 턴 끝나면 라운드++
-            //  -> 여기선 P2P 상태 동기화 편의상 '상대에게 턴 넘김'만 처리하고
-            //     내가 후공이었을 때만 '다음 라운드 시작' 플래그를 보냄)
-            
-            // 라운드 로직 단순화:
-            // 턴제: P1 -> P2 -> P1(R2) -> P2(R2) ...
-            // 현재 내가 선공(라운드 시작)이었는지 후공이었는지 알아야 함.
-            // 일단 단순하게 "내 턴 끝남 -> 상대 턴"으로 넘기고,
-            // 상대가 받아서 처리. (라운드 증가는 화면상 보여주기용)
-            
-            // 실제 승패 판정은 마지막 라운드 후공이 턴을 마칠 때.
-            // P2P 특성상 양쪽이 라운드 카운트를 가지고 있어야 함.
-            
-            // 여기선 "내 턴 종료" 신호를 보냄.
-            // 만약 내가 후공(이번 라운드의 두번째 플레이어)라면, 다음은 새 라운드임.
-            // 이걸 판별하기 위해 currentTurnPlayer 같은 변수가 필요하나,
-            // UI의 `STATE.turn`으로 관리됨.
-            
-            // 전송
-            sendData('OPP_END_TURN', { 
-                money: STATE.p1.money, 
-                hand: res.name,
-                profit: Math.floor(STATE.p1.bet * res.mult) - STATE.p1.bet,
-                // 만약 현재가 라운드의 마지막 턴이라면? (이건 로직 복잡해지니 생략하고, 받는 쪽에서 처리하도록 함)
-                // 대신 '내가 선공이었나?'를 알면 좋은데, 
-                // 그냥 상대방이 "어? 나한테 턴이 왔네?" 하고 자기 턴 시작하면 됨.
+        function broadcastStart() {
+            GAME.state = 'playing';
+            GAME.currentTurnIndex = 0;
+            // 초기화
+            GAME.players.forEach(p => {
+                p.dice = [1,2,3,4,5];
+                p.rolls = 3;
+                p.bet = 0;
             });
-
-            // 내 상태 변경
-            STATE.turn = 'p2';
-            updateTurnUI();
             
-            // 게임 종료 체크 (내가 마지막 라운드 후공이었을 경우)
-            // -> 이 체크는 "상대로부터 턴을 받았을 때" 라운드가 올라가는 구조로 처리.
-            // -> 즉, 내가 턴을 넘기면 나는 대기 상태.
+            const msg = { type: 'GAME_START', gameState: GAME };
+            broadcast(msg); // Guest들에게 전송
+            initGameUI();   // 나(Host)도 시작
         }
 
-        function resetMyTurn() {
-            STATE.p1.rolls = 3;
-            STATE.p1.bet = 0;
-            STATE.p1.locked = [false,false,false,false,false];
-            STATE.p1.dice = [1,2,3,4,5]; // 초기화
-            
-            // UI 초기화
-            document.getElementById('p1-rolls').innerText = 3;
-            document.getElementById('p1-bet-slider').value = 0;
-            document.getElementById('p1-bet-slider').disabled = false;
-            document.getElementById('p1-bet-display').innerText = 0;
-            document.getElementById('p1-hand').innerText = '-';
-            renderMyDice();
+        // --- 게임 UI 및 로직 ---
+        function initGameUI() {
+            document.getElementById('screen-lobby').classList.add('hidden-screen');
+            document.getElementById('screen-multi-game').classList.remove('hidden-screen');
+            updateGameUI();
         }
 
-        function nextRound() {
-            STATE.round++;
-            if(STATE.round > STATE.maxRounds) {
-                // 게임 종료!
-                finishGame();
-                return;
-            }
-            document.getElementById('current-round').innerText = STATE.round;
-        }
-
-        function finishGame() {
-            // 승패 판정
-            // 상대방 점수는 STATE.p2.money에 최신화 되어있음 (직전 턴 종료 시 받음)
-            // 내 점수는 STATE.p1.money
+        function updateGameUI() {
+            document.getElementById('multi-round').innerText = `${GAME.round}/${GAME.maxRounds}`;
             
-            // 하지만 방금 내 턴이 끝났다면, 상대방에게 내 점수를 보냈음.
-            // 상대방도 finishGame을 호출해야 함.
-            // -> 프로토콜: 
-            //    1. 라운드 오버 시 sendData('GAME_OVER', { p1:나, p2:너 }) 
-            //    근데 양쪽 다 호출될 수 있으니, "마지막 턴을 플레이한 사람"이 종료 신호를 보냄.
+            const currentPlayer = GAME.players[GAME.currentTurnIndex];
+            const isMyTurn = currentPlayer.id === myId;
             
-            const myMoney = STATE.p1.money;
-            const oppMoney = STATE.p2.money;
-            
-            const payload = { p1: myMoney, p2: oppMoney, senderIsP1: true }; 
-            // 주의: 받는 쪽에선 p1이 상대방(내 입장에선 p2)임. 
-            // 헷갈리니까 절대값으로 보냄 -> hostMoney, guestMoney로 구분하면 좋지만
-            // 여기선 { myScore: ..., yourScore: ... } 로 보냄
-            
-            sendData('GAME_OVER', { myScore: myMoney, yourScore: oppMoney });
-            
-            // 나도 결과 화면
-            showResult({ myScore: oppMoney, yourScore: myMoney }); // 받는 함수 구조상 반대로 넣어야 함? 아니, showResult 직접 호출
-            
-            // showResult는 (data)를 받음. data.myScore는 '보낸사람의 점수'.
-            // 내 화면에 띄울땐 내 점수, 니 점수 명확히.
-            renderResultScreen(myMoney, oppMoney);
-        }
-
-        function showResult(payload) {
-            // payload: { myScore: (상대방의 점수), yourScore: (나의 점수) }
-            renderResultScreen(payload.yourScore, payload.myScore);
-        }
-
-        function renderResultScreen(me, opp) {
-            showScreen('screen-result');
-            document.getElementById('final-p1').innerText = me.toLocaleString();
-            document.getElementById('final-p2').innerText = opp.toLocaleString();
-            
-            const title = document.getElementById('result-title');
-            const msg = document.getElementById('result-msg');
-            
-            if(me > opp) {
-                title.innerText = "VICTORY";
-                title.className = "text-8xl font-title mb-4 text-yellow-400 animate-bounce";
-                msg.innerText = `압도적인 승리! (+$${me - opp})`;
-            } else if (me < opp) {
-                title.innerText = "DEFEAT";
-                title.className = "text-8xl font-title mb-4 text-gray-500";
-                msg.innerText = `패배했습니다... (-$${opp - me})`;
+            // 1. 턴 메시지
+            const turnMsg = document.getElementById('turn-msg');
+            if (isMyTurn) {
+                turnMsg.innerText = "⭐ 나의 턴!";
+                turnMsg.className = "text-xl font-bold text-black bg-yellow-400 px-4 py-1 rounded-full animate-bounce";
+                document.getElementById('my-controls').classList.remove('opacity-50', 'pointer-events-none');
             } else {
-                title.innerText = "DRAW";
-                title.className = "text-8xl font-title mb-4 text-white";
-                msg.innerText = "무승부";
+                turnMsg.innerText = `${currentPlayer.name}의 턴...`;
+                turnMsg.className = "text-xl font-bold text-white bg-gray-700 px-4 py-1 rounded-full";
+                document.getElementById('my-controls').classList.add('opacity-50', 'pointer-events-none');
             }
-        }
 
-        // ==========================================
-        // 4. 유틸리티 (족보, UI)
-        // ==========================================
-        
-        function updateTurnUI() {
-            const ind = document.getElementById('turn-indicator');
-            const p1c = document.getElementById('p1-controls');
-            const p2s = document.getElementById('p2-status');
+            // 2. 내 상태 업데이트 (내 데이터는 players 배열에서 내 id로 찾음)
+            const me = GAME.players.find(p => p.id === myId);
             
-            if(STATE.turn === 'p1') {
-                ind.innerText = "MY TURN";
-                ind.className = "turn-indicator my-turn";
-                p1c.classList.remove('opacity-50', 'pointer-events-none');
-                p2s.innerText = "상대방 대기 중...";
-                p2s.classList.remove('animate-pulse');
-            } else {
-                ind.innerText = "OPPONENT TURN";
-                ind.className = "turn-indicator opp-turn";
-                p1c.classList.add('opacity-50', 'pointer-events-none');
-                p2s.innerText = "상대방 고민 중...";
-                p2s.classList.add('animate-pulse');
+            // 주사위 렌더링 (만약 내 턴이면 내 화면의 주사위, 아니면 서버 데이터)
+            // 편의상 항상 서버(GAME) 데이터 기준으로 렌더링
+            const myDiceContainer = document.getElementById('my-dice-container');
+            myDiceContainer.innerHTML = me.dice.map((v, i) => `
+                <div class="die die-lg ${isMyTurn && myLocked[i] ? 'locked' : ''}" onclick="toggleLock(${i})">${v}</div>
+            `).join('');
+            
+            // 족보 계산 및 표시
+            const res = evaluate(me.dice);
+            document.getElementById('my-hand-rank').innerText = `${res.name} (x${res.mult})`;
+            document.getElementById('my-rolls').innerText = me.rolls;
+            
+            // 베팅바 (내 턴일때만 값 변경 가능하게는 HTML input 속성으로 제어 가능하지만 여기선 슬라이더 UI 갱신만)
+            if(!isMyTurn) {
+                document.getElementById('my-bet-display').innerText = me.bet;
+                document.getElementById('my-bet-slider').value = me.bet;
             }
-        }
 
-        function renderMyDice() {
-            const container = document.getElementById('p1-dice');
-            container.innerHTML = STATE.p1.dice.map((val, i) => `
-                <div class="die ${STATE.p1.locked[i] ? 'locked' : ''}" onclick="toggleLock(${i})">${val}</div>
+            // 3. 오른쪽 플레이어 리스트 (현황판)
+            const pList = document.getElementById('players-status');
+            pList.innerHTML = GAME.players.map(p => `
+                <div class="player-card ${p.id === GAME.players[GAME.currentTurnIndex].id ? 'active-turn' : ''} ${p.id===myId?'is-me':''}">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-white">${p.name}</span>
+                        <span class="text-yellow-400 font-bold">$${p.money.toLocaleString()}</span>
+                    </div>
+                    <div class="flex gap-1 justify-center mb-1">
+                        ${p.dice.map(d => `<div class="w-6 h-6 bg-gray-200 rounded text-black text-center text-xs leading-6 font-bold">${d}</div>`).join('')}
+                    </div>
+                    <div class="text-[10px] text-gray-400 text-center">
+                        투자: $${p.bet} | 남은 롤: ${p.rolls}
+                    </div>
+                </div>
             `).join('');
         }
 
-        function animateOpponentDice(diceValues) {
-            const container = document.getElementById('p2-dice');
-            // 굴러가는 효과
-            container.querySelectorAll('.die').forEach(el => el.classList.add('rolling'));
+        // --- 클라이언트 액션 (나의 행동) ---
+        let myLocked = [false,false,false,false,false];
+
+        function toggleLock(idx) {
+            const currentPlayer = GAME.players[GAME.currentTurnIndex];
+            if (currentPlayer.id !== myId || currentPlayer.rolls === 3) return; // 내 턴 아니거나 첫 롤 전
+            myLocked[idx] = !myLocked[idx];
+            updateGameUI(); // 화면 갱신 (locked 클래스 적용 위해)
+        }
+
+        // 슬라이더 이벤트
+        document.getElementById('my-bet-slider').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            const me = GAME.players.find(p => p.id === myId);
+            if(val > me.money) e.target.value = me.money; // 가진 돈 초과 방지
+            document.getElementById('my-bet-display').innerText = e.target.value;
+        });
+
+        function multiRoll() {
+            const me = GAME.players.find(p => p.id === myId);
+            if(me.rolls <= 0) return;
             
-            setTimeout(() => {
-                container.innerHTML = diceValues.map(val => `
-                    <div class="die cursor-default">${val}</div>
-                `).join('');
-            }, 500);
+            const betVal = parseInt(document.getElementById('my-bet-slider').value);
+            if(betVal <= 0) return alert("투자를 하세요!");
+
+            // 호스트에게 롤 요청
+            sendToHost('ROLL', { locked: myLocked, bet: betVal });
         }
 
-        function toggleLock(i) {
-            if(STATE.turn !== 'p1') return;
-            if(STATE.p1.rolls === 3) return; // 첫 롤 전 잠금 불가
-            STATE.p1.locked[i] = !STATE.p1.locked[i];
-            renderMyDice();
+        function multiKeep() {
+            const betVal = parseInt(document.getElementById('my-bet-slider').value);
+            sendToHost('KEEP', { bet: betVal });
         }
 
-        function setupBetSlider() {
-            const s = document.getElementById('p1-bet-slider');
-            const d = document.getElementById('p1-bet-display');
-            s.max = STATE.p1.money;
-            s.addEventListener('input', e => {
-                STATE.p1.bet = parseInt(e.target.value);
-                d.innerText = STATE.p1.bet.toLocaleString();
-            });
+        function addLog(msg) {
+            const log = document.getElementById('multi-log');
+            const d = document.createElement('div');
+            d.innerText = `> ${msg}`;
+            log.prepend(d);
         }
 
-        function showScreen(id) {
-            ['screen-lobby', 'screen-setup', 'screen-wait', 'screen-game', 'screen-result'].forEach(s => {
-                document.getElementById(s).classList.add('hidden-screen');
-            });
-            document.getElementById(id).classList.remove('hidden-screen');
+        // --- Host 전용 로직 (게임 상태 관리) ---
+        function handlePlayerAction(senderId, action, payload) {
+            // 현재 턴 플레이어인지 검증
+            const pIdx = GAME.players.findIndex(p => p.id === senderId);
+            if (pIdx !== GAME.currentTurnIndex) return; // 턴 아님 무시
+
+            const player = GAME.players[pIdx];
+
+            if (action === 'ROLL') {
+                if (player.rolls > 0) {
+                    player.bet = payload.bet; // 베팅 확정
+                    player.rolls--;
+                    // 주사위 굴리기 (서버(Host)에서 랜덤 생성 - 공정성)
+                    player.dice = player.dice.map((v, i) => payload.locked[i] ? v : Math.floor(Math.random()*6)+1);
+                    
+                    broadcast({ type: 'STATE_UPDATE', gameState: GAME });
+                }
+            }
+            else if (action === 'KEEP') {
+                // 점수 계산 및 턴 넘기기
+                const hand = evaluate(player.dice);
+                const profit = Math.floor(player.bet * hand.mult);
+                // 기존 자산에서 베팅금을 빼고 수익을 더함 (수익이 0이면 베팅금 날림)
+                // 로직: money = money - bet + profit
+                player.money = player.money - player.bet + profit;
+                
+                // 턴 넘기기
+                player.rolls = 3; 
+                player.bet = 0;
+                // player.dice = [1,1,1,1,1]; // 다음 사람을 위해 초기화? 아니면 결과 유지? 유지하는게 좋음.
+                
+                GAME.currentTurnIndex++;
+                if (GAME.currentTurnIndex >= GAME.players.length) {
+                    // 라운드 종료
+                    GAME.currentTurnIndex = 0;
+                    GAME.round++;
+                    if (GAME.round > GAME.maxRounds) {
+                        // 게임 오버
+                        const rankings = [...GAME.players].sort((a,b) => b.money - a.money);
+                        broadcast({ type: 'GAME_OVER', rankings: rankings });
+                        showResult(rankings); // Host 본인도 실행
+                        return;
+                    }
+                }
+                
+                // 다음 턴 주자의 주사위 등 초기화 (필요시)
+                const nextPlayer = GAME.players[GAME.currentTurnIndex];
+                nextPlayer.rolls = 3; 
+                nextPlayer.bet = 0;
+                
+                broadcast({ type: 'STATE_UPDATE', gameState: GAME });
+            }
         }
 
-        // 족보 로직 (간소화)
-        function evaluateHand(d) {
-            // Yacht, 4K, FH, Str, 3K, 2P, 1P
-            const c={}; d.forEach(x=>c[x]=(c[x]||0)+1);
-            const vals=Object.values(c);
-            const u=[...new Set(d)].sort().join('');
+        // --- 결과 화면 ---
+        function showResult(rankings) {
+            document.getElementById('screen-multi-game').classList.add('hidden-screen');
+            document.getElementById('result-modal').classList.remove('hidden-screen');
             
-            if(vals.includes(5)) return { name: "Yacht", mult: 10 };
-            if(u==='12345'||u==='23456') return { name: "L.Straight", mult: 5 };
-            if(vals.includes(4)) return { name: "4 Kind", mult: 4 };
-            if((vals.includes(3)&&vals.includes(2))) return { name: "Full House", mult: 3 };
-            if(u.includes('1234')||u.includes('2345')||u.includes('3456')) return { name: "S.Straight", mult: 3 };
-            if(vals.includes(3)) return { name: "3 Kind", mult: 2 };
-            if(vals.filter(v=>v===2).length===2) return { name: "2 Pair", mult: 1.5 };
-            if(vals.includes(2)) return { name: "1 Pair", mult: 0.5 }; // 손해
-            return { name: "No Pair", mult: 0 }; // 꽝
+            const div = document.getElementById('rankings');
+            div.innerHTML = rankings.map((p, i) => `
+                <div class="flex justify-between items-center bg-gray-800 p-4 rounded-xl border ${p.id===myId?'border-blue-500':'border-gray-600'}">
+                    <div class="flex items-center gap-4">
+                        <span class="text-3xl font-black ${i===0?'text-yellow-400':'text-gray-500'}">#${i+1}</span>
+                        <span class="text-white font-bold text-xl">${p.name}</span>
+                    </div>
+                    <span class="text-2xl text-green-400 font-bold">$${p.money.toLocaleString()}</span>
+                </div>
+            `).join('');
         }
 
     </script>
