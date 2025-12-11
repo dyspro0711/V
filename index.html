@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎲 Dice Vestor: Short ID</title>
+    <title>🎲 Dice Vestor: Strong Connect</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -165,12 +165,9 @@
         let peer = null, connections = [], hostConn = null;
         let singleStats = [0,0,0,0,0,0], singleTotal = 0, myChart = null;
 
-        // [수정] 4~5자리 랜덤 ID 생성 함수 (대문자+숫자)
-        function generateShortId() {
-            return Math.random().toString(36).substr(2, 5).toUpperCase();
-        }
+        function generateShortId() { return Math.random().toString(36).substr(2, 5).toUpperCase(); }
         
-        // 족보 로직 (라지/스몰 스트레이트 포함)
+        // 족보 로직
         function getUniqueStr(d) { return [...new Set(d)].sort((a,b)=>a-b).join(''); }
         const HANDS = [
             { name: "Yacht", mult: 10, check: d=>hasKind(d,5) }, 
@@ -186,7 +183,6 @@
             { name: "1 Pair", mult: 0.5, check: d=>hasKind(d,2) }, 
             { name: "No Pair", mult: 0, check: d=>true }
         ];
-
         function evaluate(d) { return HANDS.find(h => h.check(d)); }
         function hasKind(d,n){const c={};d.forEach(x=>c[x]=(c[x]||0)+1);return Object.values(c).some(v=>v>=n);}
         function isFullHouse(d){const c={};d.forEach(x=>c[x]=(c[x]||0)+1);const v=Object.values(c);return (v.includes(3)&&v.includes(2))||v.includes(5);}
@@ -218,12 +214,8 @@
             if(activeBtn) { activeBtn.classList.remove('text-gray-500'); activeBtn.classList.add('border-blue-500', 'text-white'); }
         }
 
-        // ==========================================
-        // 1. 싱글 플레이
-        // ==========================================
         function startSinglePlayer() {
-            MODE = 'single';
-            GAME.round = 1; GAME.maxRounds = 10; GAME.money = 1000; GAME.bet = 0; GAME.myId = 'single_player';
+            MODE = 'single'; GAME.round = 1; GAME.maxRounds = 10; GAME.money = 1000; GAME.bet = 0; GAME.myId = 'single_player';
             resetTurn();
             document.getElementById('single-highscore').classList.remove('hidden-screen');
             document.getElementById('chat-input-area').classList.add('hidden-screen');
@@ -231,13 +223,10 @@
             document.getElementById('tab-btn-stats').classList.remove('hidden');
             const best = localStorage.getItem('dv_highscore') || 0;
             document.getElementById('best-score-disp').innerText = parseInt(best).toLocaleString();
-            document.getElementById('tab-status').innerHTML = `
-                <div class="bg-gray-800 p-3 rounded border border-blue-500 flex justify-between"><span class="text-white font-bold">나 (ME)</span><span class="text-green-400 font-bold">$1,000</span></div>`;
-            if(!myChart) initChart();
-            switchTab('chat');
+            document.getElementById('tab-status').innerHTML = `<div class="bg-gray-800 p-3 rounded border border-blue-500 flex justify-between"><span class="text-white font-bold">나 (ME)</span><span class="text-green-400 font-bold">$1,000</span></div>`;
+            if(!myChart) initChart(); switchTab('chat');
             document.getElementById('chat-history').innerHTML = '<div class="chat-system">게임 로그가 기록됩니다.</div>';
-            showScreen('screen-game');
-            updateUI();
+            showScreen('screen-game'); updateUI();
         }
 
         function initChart() {
@@ -246,22 +235,37 @@
         }
         function updateChart() {
             if(singleTotal>0) myChart.data.datasets[0].data = singleStats.map(v=>(v/singleTotal*100).toFixed(1));
-            myChart.update();
-            document.getElementById('total-rolls').innerText = singleTotal;
+            myChart.update(); document.getElementById('total-rolls').innerText = singleTotal;
         }
 
         // ==========================================
-        // 2. 멀티 플레이 (짧은 ID 적용)
+        // 2. 멀티 플레이 (강력한 연결 옵션 추가)
         // ==========================================
+        
+        // [중요] 구글 STUN 서버 목록 (방화벽 우회용)
+        const iceConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
+            ]
+        };
+
         function setupMultiplayer(role) {
             MODE = 'multi';
             document.getElementById('tab-btn-stats').classList.add('hidden');
             showScreen('screen-lobby');
             if(peer) peer.destroy();
             
-            // [수정] 짧은 ID 생성
             const shortId = generateShortId();
-            peer = new Peer(shortId, { debug: 1 }); // 짧은 ID 사용
+            
+            // [수정] config 옵션 추가 (강제 연결 시도)
+            peer = new Peer(shortId, { 
+                debug: 1,
+                config: iceConfig 
+            }); 
             
             peer.on('open', id => {
                 GAME.myId = id;
@@ -282,46 +286,44 @@
                 }
             });
 
-            // ID 중복 에러 처리 (아주 드문 경우)
             peer.on('error', (err) => {
-                if(err.type === 'unavailable-id') {
-                    alert("ID 생성 충돌! 다시 시도해주세요.");
-                    setupMultiplayer(role); // 재시도
-                } else {
+                if(err.type === 'unavailable-id') setupMultiplayer(role);
+                else {
                     console.error(err);
+                    alert("네트워크 오류: " + err.type);
                 }
             });
 
-            peer.on('connection', conn => {
-                if(GAME.isHost) {
-                    setupConn(conn);
-                }
-            });
+            peer.on('connection', conn => { if(GAME.isHost) setupConn(conn); });
         }
 
         function joinRoom() {
-            let hostId = document.getElementById('host-id-input').value.trim().toUpperCase(); // 대문자 변환
+            let hostId = document.getElementById('host-id-input').value.trim().toUpperCase();
             if(!hostId) return alert("코드를 입력하세요");
             
             const btn = document.getElementById('join-btn');
-            btn.disabled = true; btn.classList.add('opacity-50'); btn.innerText = "연결 시도 중...";
+            btn.disabled = true; btn.classList.add('opacity-50'); btn.innerText = "강제 연결 시도 중...";
             document.getElementById('guest-status').classList.remove('hidden-screen');
-            document.getElementById('guest-status').innerText = "📡 네트워크 경로 탐색 중... (최대 10초)";
+            document.getElementById('guest-status').innerText = "📡 보안망 뚫는 중... (최대 15초)";
 
-            hostConn = peer.connect(hostId, { reliable: true });
+            // [수정] 호스트 연결 시에도 config 사용
+            hostConn = peer.connect(hostId, { 
+                reliable: true,
+                iceServers: iceConfig.iceServers // 명시적 추가
+            });
 
             hostConn.on('open', () => {
-                document.getElementById('guest-status').innerText = "✅ 서버 발견! 입장 요청 중...";
+                document.getElementById('guest-status').innerText = "✅ 뚫었다! 입장 요청 중...";
                 setupConn(hostConn);
                 hostConn.send({type:'JOIN_REQ', name: `게스트 ${Math.floor(Math.random()*100)}`});
             });
 
-            // 5초 후에도 연결 안되면 힌트 제공
+            // 타임아웃 힌트
             setTimeout(() => {
-                if(btn.disabled && document.getElementById('guest-status').innerText.includes('탐색 중')) {
-                     document.getElementById('guest-status').innerText = "⚠️ 연결이 지연되고 있습니다... (방화벽 확인)";
+                if(btn.disabled && document.getElementById('guest-status').innerText.includes('뚫는 중')) {
+                     document.getElementById('guest-status').innerText = "⚠️ 핫스팟(LTE/5G)을 켜고 해보세요!";
                 }
-            }, 5000);
+            }, 8000);
 
             hostConn.on('error', (e) => {
                 alert("연결 실패: " + e);
@@ -347,7 +349,7 @@
                 else if(data.type === 'LOBBY_UPDATE') { 
                     GAME.players = data.players; 
                     updateLobbyList(); 
-                    document.getElementById('guest-status').innerText = "🎉 입장 완료! 게임 대기 중...";
+                    document.getElementById('guest-status').innerText = "🎉 입장 성공! 대기 중...";
                 }
                 else if(data.type === 'GAME_START') { 
                     const savedId = GAME.myId; const savedHost = GAME.isHost;
@@ -364,9 +366,7 @@
             });
         }
 
-        function broadcast(msg) { 
-            if(GAME.isHost) connections.forEach(c => { if(c.open) c.send(msg); });
-        }
+        function broadcast(msg) { if(GAME.isHost) connections.forEach(c => { if(c.open) c.send(msg); }); }
         function sendAction(act, pl) {
             if(GAME.isHost) handleHostAction(GAME.myId, act, pl);
             else hostConn.send({type:'ACTION', senderId:GAME.myId, action:act, payload:pl});
@@ -383,57 +383,40 @@
         }
 
         function setRounds(n) { GAME.maxRounds = n; document.querySelectorAll('.round-btn').forEach(b => b.classList.replace('bg-blue-600','bg-gray-600')); event.target.classList.replace('bg-gray-600','bg-blue-600'); }
-        
         function broadcastStart() {
-            GAME.state = 'playing';
-            GAME.turnIdx = 0; GAME.round = 1;
+            GAME.state = 'playing'; GAME.turnIdx = 0; GAME.round = 1;
             GAME.players.forEach(p => { p.money=1000; p.dice=[1,2,3,4,5]; p.rolls=3; p.bet=0; });
             const state = JSON.parse(JSON.stringify(GAME));
-            broadcast({type:'GAME_START', state:state});
-            startMultiGame();
+            broadcast({type:'GAME_START', state:state}); startMultiGame();
         }
-
         function startMultiGame() {
             showScreen('screen-game');
             document.getElementById('single-highscore').classList.add('hidden-screen');
             document.getElementById('chat-input-area').classList.remove('hidden-screen');
             document.getElementById('turn-indicator').classList.remove('hidden');
             document.getElementById('chat-history').innerHTML = '<div class="chat-system">게임 시작!</div>';
-            switchTab('chat');
-            updateUI();
+            switchTab('chat'); updateUI();
         }
-
-        // ==========================================
-        // 3. 인게임 액션
-        // ==========================================
         function resetTurn() {
             GAME.dice = [1,2,3,4,5]; GAME.locked = [false,false,false,false,false]; GAME.rolls = 3; GAME.bet = 0;
             document.getElementById('bet-slider').value = 0; document.getElementById('bet-slider').disabled = false;
         }
-
         function actionRoll() {
             if(MODE === 'multi' && !isMyTurn()) return;
-            
             let currentRolls = GAME.rolls;
             if (MODE === 'multi') {
                 const me = GAME.players.find(p => p.id === GAME.myId);
                 if (me) currentRolls = me.rolls;
             }
-
             if(currentRolls <= 0) return;
-            
             const bet = parseInt(document.getElementById('bet-slider').value);
             if(bet <= 0) return alert("투자를 하세요!");
             if(bet > GAME.money) return alert("자금이 부족합니다.");
-            
             if(MODE === 'single') {
                 GAME.bet = bet; GAME.rolls--; localRoll();
                 document.getElementById('bet-slider').disabled = true; updateUI();
-            } else {
-                sendAction('ROLL', {bet:bet, locked:GAME.locked});
-            }
+            } else { sendAction('ROLL', {bet:bet, locked:GAME.locked}); }
         }
-
         function actionKeep() {
             if(MODE === 'multi' && !isMyTurn()) return;
             if(MODE === 'single') {
@@ -445,14 +428,9 @@
                 if(GAME.round > GAME.maxRounds) {
                     const best = Math.max(GAME.money, parseInt(localStorage.getItem('dv_highscore')||0));
                     localStorage.setItem('dv_highscore', best); showResult([{name:'나', money:GAME.money}]);
-                } else {
-                    resetTurn(); updateUI();
-                }
-            } else {
-                const bet = parseInt(document.getElementById('bet-slider').value); sendAction('KEEP', {bet:bet});
-            }
+                } else { resetTurn(); updateUI(); }
+            } else { const bet = parseInt(document.getElementById('bet-slider').value); sendAction('KEEP', {bet:bet}); }
         }
-
         function localRoll() {
             const els = document.querySelectorAll('.die');
             els.forEach((el,i) => { if(!GAME.locked[i]) el.classList.add('rolling'); });
@@ -465,7 +443,6 @@
                 els.forEach(el => el.classList.remove('rolling')); updateUI(); updateChart();
             }, 400);
         }
-
         function toggleLock(i) {
             if(MODE==='multi' && !isMyTurn()) return;
             let currentRolls = GAME.rolls;
@@ -476,19 +453,16 @@
             if(currentRolls === 3) return;
             GAME.locked[i] = !GAME.locked[i]; updateUI();
         }
-
         function updateUI() {
             const isSingle = MODE === 'single';
             const me = isSingle ? GAME : GAME.players.find(p=>p.id===GAME.myId);
             const curP = isSingle ? GAME : GAME.players[GAME.turnIdx];
             const isMe = isSingle ? true : curP.id === GAME.myId;
-
             document.getElementById('game-round').innerText = GAME.round;
             document.getElementById('game-max-rounds').innerText = GAME.maxRounds;
             document.getElementById('current-money').innerText = me.money.toLocaleString();
             const ind = document.getElementById('turn-indicator');
             const controls = document.getElementById('control-panel');
-            
             if(!isSingle) {
                 if(isMe) {
                     ind.innerText = "⭐ 나의 턴"; ind.className = "text-lg font-bold text-black bg-yellow-400 px-6 py-2 rounded-full animate-bounce";
@@ -498,7 +472,6 @@
                     controls.classList.add('opacity-50', 'pointer-events-none');
                 }
             } else { controls.classList.remove('opacity-50', 'pointer-events-none'); }
-
             const displayDice = isSingle ? GAME.dice : curP.dice;
             const displayLocked = isSingle ? GAME.locked : (isMe ? GAME.locked : [false,false,false,false,false]);
             document.getElementById('dice-container').innerHTML = displayDice.map((v, i) => `
@@ -510,7 +483,6 @@
             document.getElementById('rolls-left').innerText = isSingle ? GAME.rolls : curP.rolls;
             if(!isMe && !isSingle) { document.getElementById('bet-display').innerText = curP.bet; } 
             else { const s = document.getElementById('bet-slider'); s.max = me.money; document.getElementById('bet-display').innerText = s.value; }
-
             if(!isSingle) {
                 document.getElementById('tab-status').innerHTML = GAME.players.map(p => `
                     <div class="bg-gray-800 p-2 rounded border ${p.id===curP.id ? 'border-yellow-400' : 'border-gray-600'} mb-2">
@@ -519,13 +491,10 @@
                     </div>`).join('');
             }
         }
-
         function handleHostAction(pid, act, pl) {
             if(act === 'CHAT') { broadcast({type:'CHAT', sender:pl.name, text:pl.text}); addChatMessage(pl.name, pl.text, false); return; }
-            const pIdx = GAME.players.findIndex(p=>p.id===pid);
-            if(pIdx !== GAME.turnIdx) return;
+            const pIdx = GAME.players.findIndex(p=>p.id===pid); if(pIdx !== GAME.turnIdx) return;
             const p = GAME.players[pIdx];
-
             if(act === 'ROLL') {
                 if(p.rolls > 0) {
                     p.bet = pl.bet; p.rolls--; p.dice = p.dice.map((v, i) => pl.locked[i] ? v : Math.floor(Math.random()*6)+1);
@@ -535,8 +504,7 @@
                 const res = evaluate(p.dice); const prof = Math.floor(p.bet * res.mult); const net = prof - p.bet;
                 p.money += net;
                 broadcast({type:'CHAT', sender:'시스템', text:`${p.name}: ${net>=0?'+':''}${net} (${res.name})`});
-                p.rolls=3; p.bet=0; GAME.locked=[false,false,false,false,false];
-                GAME.turnIdx++;
+                p.rolls=3; p.bet=0; GAME.locked=[false,false,false,false,false]; GAME.turnIdx++;
                 if(GAME.turnIdx >= GAME.players.length) {
                     GAME.turnIdx = 0; GAME.round++;
                     if(GAME.round > GAME.maxRounds) {
@@ -548,7 +516,6 @@
                 broadcast({type:'STATE_UPDATE', state:GAME}); if(GAME.isHost) updateUI();
             }
         }
-
         function isMyTurn() { return GAME.players[GAME.turnIdx].id === GAME.myId; }
         function copyId() { navigator.clipboard.writeText(GAME.myId); alert("복사됨"); }
         document.getElementById('bet-slider').addEventListener('input', e => {
