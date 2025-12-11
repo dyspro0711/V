@@ -3,110 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎲 Dice Vestor: Final Stable</title>
+    <title>🎲 Dice Vestor: Final Fix</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --glass-bg: rgba(30, 41, 59, 0.95);
-            --glass-border: rgba(255, 255, 255, 0.1);
-        }
-
-        body {
-            background-color: #0f172a;
-            color: #e2e8f0;
-            font-family: 'Noto Sans KR', sans-serif;
-            user-select: none;
-            overflow: hidden;
-            /* 배경 */
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%);
-        }
-
-        /* 배경 그리드 (클릭 방지 필수) */
-        .bg-grid {
-            position: absolute;
-            inset: 0; z-index: 0;
-            background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-            background-size: 40px 40px;
-            pointer-events: none; /* 중요: 클릭 통과 */
-        }
-
+        :root { --glass-bg: rgba(30, 41, 59, 0.95); --glass-border: rgba(255, 255, 255, 0.1); }
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Noto Sans KR', sans-serif; user-select: none; overflow: hidden; background-image: radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%); }
+        .bg-grid { position: absolute; inset: 0; z-index: 0; background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; }
         .font-title { font-family: 'Russo One', sans-serif; letter-spacing: 1px; }
         .hidden-screen { display: none !important; }
-
-        /* 패널 */
-        .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-            position: relative;
-            z-index: 10;
-        }
-
-        /* 주사위 */
-        .die {
-            width: 55px;
-            height: 55px;
-            background: linear-gradient(145deg, #f8fafc, #cbd5e1); color: #1e293b;
-            border-radius: 12px; display: flex; align-items: center; justify-content: center;
-            font-size: 1.8rem; font-weight: bold;
-            cursor: pointer; transition: all 0.2s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3); border: 1px solid #fff;
-        }
+        .glass-panel { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); position: relative; z-index: 10; }
+        .die { width: 55px; height: 55px; background: linear-gradient(145deg, #f8fafc, #cbd5e1); color: #1e293b; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: bold; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border: 1px solid #fff; }
         .die:hover { transform: translateY(-2px); }
-        .die.locked {
-            background: linear-gradient(145deg, #ef4444, #b91c1c);
-            color: white; border-color: #fca5a5;
-            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); transform: translateY(2px);
-        }
+        .die.locked { background: linear-gradient(145deg, #ef4444, #b91c1c); color: white; border-color: #fca5a5; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); transform: translateY(2px); }
         .die-lg { width: 75px; height: 75px; font-size: 2.5rem; }
         .rolling { animation: roll-shake 0.4s infinite; }
-        @keyframes roll-shake { 
-            0% { transform: rotate(0deg); } 25% { transform: rotate(5deg); } 
-            75% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } 
-        }
-
-        /* 버튼 */
-        .btn-glow { 
-            position: relative;
-            overflow: hidden; transition: all 0.2s; 
-            z-index: 50; /* 클릭 우선순위 높임 */
-            cursor: pointer;
-        }
+        @keyframes roll-shake { 0% { transform: rotate(0deg); } 25% { transform: rotate(5deg); } 75% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
+        .btn-glow { position: relative; overflow: hidden; transition: all 0.2s; z-index: 50; cursor: pointer; }
         .btn-glow:hover { transform: translateY(-2px); filter: brightness(1.2); }
         .btn-glow:active { transform: translateY(0); filter: brightness(0.9); }
         .btn-glow:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); transform: none; }
-
-        /* 뒤로가기 버튼 */
-        .back-btn {
-            position: absolute;
-            top: 20px; left: 20px; z-index: 100;
-            background: rgba(255,255,255,0.1); color: #94a3b8;
-            padding: 8px 16px; border-radius: 999px;
-            font-size: 0.85rem; font-weight: 600;
-            cursor: pointer;
-            border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 6px;
-        }
+        .back-btn { position: absolute; top: 20px; left: 20px; z-index: 100; background: rgba(255,255,255,0.1); color: #94a3b8; padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 6px; }
         .back-btn:hover { background: rgba(255,255,255,0.2); color: white; }
-
-        /* 채팅 */
         .chat-bubble { padding: 6px 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 6px; word-break: break-all; }
         .chat-system { color: #fbbf24; font-size: 0.75rem; text-align: center; margin: 8px 0; opacity: 0.8; }
         .chat-mine { background: #3b82f6; color: white; align-self: flex-end; margin-left: 20%; text-align: right; }
         .chat-other { background: #334155; color: #e2e8f0; align-self: flex-start; margin-right: 20%; text-align: left; }
-        
-        /* 슬라이더 */
         input[type=range] { -webkit-appearance: none; background: transparent; cursor: pointer; position: relative; z-index: 20; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #10b981; margin-top: -6px; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #334155; border-radius: 2px; }
-        
-        /* 스크롤바 */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
@@ -122,24 +49,16 @@
 
     <div id="screen-menu" class="glass-panel w-full max-w-md p-10 rounded-3xl text-center relative z-50">
         <div class="absolute -top-10 -left-10 w-32 h-32 bg-blue-500 rounded-full blur-[80px] opacity-30 pointer-events-none"></div>
-    
         <h1 class="text-6xl font-title text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-2 drop-shadow-sm">DICE VESTOR</h1>
         <p class="text-gray-400 mb-10 text-sm tracking-wide">투자 & 확률 전략 게임</p>
-        
         <div class="space-y-4 relative z-50">
             <button onclick="startSinglePlayer()" class="btn-glow w-full py-5 bg-gradient-to-r from-slate-700 to-slate-800 border border-slate-600 text-white font-bold rounded-2xl text-lg flex items-center justify-between px-6 group">
-                <div class="text-left">
-                    <span class="block group-hover:text-blue-300 transition">👤 개인 플레이</span>
-                    <span class="text-[11px] text-gray-400">싱글 모드 (기록 도전)</span>
-                </div>
-                <span class="text-2xl">🏆</span>
+                <div class="text-left"><span class="block group-hover:text-blue-300 transition">👤 개인 플레이</span><span class="text-[11px] text-gray-400">싱글 모드 (기록 도전)</span></div><span class="text-2xl">🏆</span>
             </button>
- 
             <div class="grid grid-cols-2 gap-4">
                 <button onclick="setupMultiplayer('host')" class="btn-glow py-5 bg-gradient-to-br from-green-900/80 to-green-800/80 border border-green-700 hover:border-green-400 text-white font-bold rounded-2xl flex flex-col items-center justify-center gap-1 group">
                     <span class="text-2xl">🏠</span><span>방 만들기</span><span class="text-[10px] text-green-300/70">Host</span>
                 </button>
-            
                 <button onclick="setupMultiplayer('guest')" class="btn-glow py-5 bg-gradient-to-br from-purple-900/80 to-purple-800/80 border border-purple-700 hover:border-purple-400 text-white font-bold rounded-2xl flex flex-col items-center justify-center gap-1 group">
                     <span class="text-2xl">🔗</span><span>참가하기</span><span class="text-[10px] text-purple-300/70">Guest</span>
                 </button>
@@ -148,24 +67,12 @@
     </div>
 
     <div id="screen-game" class="hidden-screen w-full max-w-7xl p-4 flex gap-6 h-[800px] pt-16 relative z-10">
-        
         <div class="w-3/4 glass-panel rounded-3xl p-8 flex flex-col relative shadow-2xl">
             <div class="flex justify-between items-start mb-8">
-                <div class="flex flex-col">
-                    <span class="text-xs text-gray-400 font-mono">ROUND</span>
-                    <span class="text-3xl font-title text-white"><span id="game-round">1</span> <span class="text-gray-600 text-xl">/ <span id="game-max-rounds">10</span></span></span>
-                </div>
-                
-                <div id="turn-indicator" class="hidden text-lg font-bold text-gray-400 bg-black/30 px-6 py-2 rounded-full border border-white/5">
-                    대기중...
-                </div>
-                
-                <div id="single-highscore" class="hidden text-right">
-                    <span class="text-xs text-yellow-500 font-bold tracking-widest">HIGH SCORE</span>
-                    <div class="text-2xl font-bold text-white">$<span id="best-score-disp">0</span></div>
-                </div>
+                <div class="flex flex-col"><span class="text-xs text-gray-400 font-mono">ROUND</span><span class="text-3xl font-title text-white"><span id="game-round">1</span> <span class="text-gray-600 text-xl">/ <span id="game-max-rounds">10</span></span></span></div>
+                <div id="turn-indicator" class="hidden text-lg font-bold text-gray-400 bg-black/30 px-6 py-2 rounded-full border border-white/5">대기중...</div>
+                <div id="single-highscore" class="hidden text-right"><span class="text-xs text-yellow-500 font-bold tracking-widest">HIGH SCORE</span><div class="text-2xl font-bold text-white">$<span id="best-score-disp">0</span></div></div>
             </div>
-
             <div class="flex-1 flex flex-col items-center justify-center">
                 <div class="flex gap-6 mb-10" id="dice-container">
                     <div class="die die-lg" onclick="toggleLock(0)">1</div>
@@ -174,60 +81,37 @@
                     <div class="die die-lg" onclick="toggleLock(3)">4</div>
                     <div class="die die-lg" onclick="toggleLock(4)">5</div>
                 </div>
-               
                 <div class="text-5xl font-title text-yellow-400 h-16 drop-shadow-md tracking-wider" id="hand-rank">-</div>
                 <div class="text-xl font-bold text-green-400" id="hand-mult">x0.0</div>
             </div>
-
             <div id="control-panel" class="mt-auto transition duration-300 bg-black/20 p-6 rounded-2xl border border-white/5">
                 <div class="mb-6">
-                    <div class="flex justify-between text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">
-                        <span>현재 자산: $<span id="current-money">1,000</span></span>
-                        <span class="text-green-400 text-lg">투자: $<span id="bet-display">0</span></span>
-                    </div>
-                   
+                    <div class="flex justify-between text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider"><span>현재 자산: $<span id="current-money">1,000</span></span><span class="text-green-400 text-lg">투자: $<span id="bet-display">0</span></span></div>
                     <input type="range" id="bet-slider" class="w-full" min="0" max="1000" step="10">
-                    <div class="flex justify-between text-[10px] text-gray-500 mt-1">
-                        <span>0%</span><span>50%</span><span>100%</span>
-                    </div>
+                    <div class="flex justify-between text-[10px] text-gray-500 mt-1"><span>0%</span><span>50%</span><span>100%</span></div>
                 </div>
-        
                 <div class="flex gap-4">
-                    <button id="btn-roll" onclick="actionRoll()" class="btn-glow flex-1 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xl shadow-lg">
-                        ROLL (<span id="rolls-left">3</span>)
-                    </button>
-            
-                    <button id="btn-keep" onclick="actionKeep()" class="btn-glow flex-1 py-4 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl text-xl shadow-lg">
-                        KEEP
-                    </button>
+                    <button id="btn-roll" onclick="actionRoll()" class="btn-glow flex-1 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xl shadow-lg">ROLL (<span id="rolls-left">3</span>)</button>
+                    <button id="btn-keep" onclick="actionKeep()" class="btn-glow flex-1 py-4 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl text-xl shadow-lg">KEEP</button>
                 </div>
             </div>
         </div>
-
         <div id="sidebar" class="w-1/4 glass-panel rounded-3xl flex flex-col p-4">
             <div class="flex border-b border-white/10 mb-2">
-                <button id="tab-btn-chat" class="flex-1 py-2 text-xs font-bold text-white border-b-2 border-blue-500" onclick="switchTab('chat')">💬 채팅/로그</button>
+                <button id="tab-btn-chat" class="flex-1 py-2 text-xs font-bold text-white border-b-2 border-blue-500" onclick="switchTab('chat')">💬 채팅</button>
                 <button id="tab-btn-status" class="flex-1 py-2 text-xs font-bold text-gray-500" onclick="switchTab('status')">👥 현황</button>
                 <button id="tab-btn-stats" class="flex-1 py-2 text-xs font-bold text-gray-500 hidden" onclick="switchTab('stats')">📊 통계</button>
             </div>
-
             <div id="tab-chat" class="flex-1 flex flex-col h-full">
-                <div id="chat-history" class="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-2 space-y-2 text-sm h-0">
-                    <div class="chat-system">게임 대기중...</div>
-                </div>
- 
+                <div id="chat-history" class="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-2 space-y-2 text-sm h-0"><div class="chat-system">게임 대기중...</div></div>
                 <div id="chat-input-area" class="mt-2 flex gap-2 hidden-screen">
                     <input type="text" id="chat-msg" class="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none" placeholder="메시지..." onkeypress="if(event.key==='Enter') sendChat()">
                     <button onclick="sendChat()" class="bg-blue-600 text-white px-3 rounded-lg text-sm font-bold hover:bg-blue-500">전송</button>
                 </div>
             </div>
-
             <div id="tab-status" class="hidden-screen flex-1 overflow-y-auto custom-scrollbar space-y-2 p-1"></div>
-
             <div id="tab-stats" class="hidden-screen flex-1 flex flex-col p-1">
-                <div class="flex-1 bg-black/20 rounded-xl p-2 relative h-48">
-                    <canvas id="statChart"></canvas>
-                </div>
+                <div class="flex-1 bg-black/20 rounded-xl p-2 relative h-48"><canvas id="statChart"></canvas></div>
                 <p class="text-center text-[10px] text-gray-500 mt-2">이론(16.6%) vs 실험 확률</p>
                 <div class="text-center text-xs text-white mt-2">총 시행: <span id="total-rolls">0</span></div>
             </div>
@@ -236,7 +120,6 @@
 
     <div id="screen-lobby" class="hidden-screen glass-panel w-full max-w-md p-8 rounded-3xl text-center mt-10 relative z-50">
         <h2 class="text-3xl font-title text-white mb-6">LOBBY</h2>
-        
         <div id="host-ui" class="hidden-screen mb-6">
             <div class="bg-black/40 p-4 rounded-xl border border-white/10 mb-4">
                 <p class="text-xs text-gray-400 mb-1">초대 코드</p>
@@ -250,15 +133,13 @@
                 <button onclick="setRounds(5)" class="round-btn bg-gray-600 text-gray-400 px-3 py-1 rounded text-xs font-bold">5R</button>
                 <button onclick="setRounds(10)" class="round-btn bg-gray-600 text-gray-400 px-3 py-1 rounded text-xs font-bold">10R</button>
             </div>
-            <button id="start-game-btn" onclick="broadcastStart()" class="btn-glow w-full py-3 bg-green-600 text-white font-bold rounded-xl disabled:opacity-50">게임 시작</button>
+            <button id="start-game-btn" onclick="broadcastStart()" class="btn-glow w-full py-3 bg-green-600 text-white font-bold rounded-xl disabled:opacity-50" disabled>게임 시작</button>
         </div>
-
         <div id="guest-ui" class="hidden-screen mb-6">
             <input type="text" id="host-id-input" placeholder="방장 ID 입력" class="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-center text-white mb-3 outline-none">
             <button id="join-btn" onclick="joinRoom()" class="btn-glow w-full py-3 bg-purple-600 text-white font-bold rounded-xl">연결하기</button>
             <p id="guest-status" class="mt-2 text-yellow-400 text-xs animate-pulse hidden-screen">대기중...</p>
         </div>
-
         <div class="text-left bg-black/20 p-4 rounded-xl">
             <p class="text-xs text-gray-400 mb-2">접속자 (<span id="player-count">1</span>/4)</p>
             <ul id="player-list" class="space-y-1 text-sm font-bold text-white"></ul>
@@ -273,7 +154,7 @@
 
     <script>
         // ==========================================
-        // 0. 전역 설정 & 네비게이션
+        // 0. 전역 설정
         // ==========================================
         let MODE = 'single';
         let GAME = { 
@@ -284,7 +165,6 @@
         let peer = null, connections = [], hostConn = null;
         let singleStats = [0,0,0,0,0,0], singleTotal = 0, myChart = null;
         
-        // 족보
         const HANDS = [
             { name: "Yacht", mult: 10, check: d=>hasKind(d,5) }, { name: "4 Kind", mult: 5, check: d=>hasKind(d,4) },
             { name: "Full House", mult: 3, check: d=>isFullHouse(d) }, { name: "Straight", mult: 2, check: d=>isStraight(d) },
@@ -297,7 +177,6 @@
         function isStraight(d){const u=[...new Set(d)].sort().join('');return u.includes('1234')||u.includes('2345')||u.includes('3456');}
         function isTwoPair(d){const c={};d.forEach(x=>c[x]=(c[x]||0)+1);return Object.values(c).filter(v=>v>=2).length>=2;}
 
-        // 화면 전환
         function showScreen(id) {
             ['screen-menu', 'screen-lobby', 'screen-game', 'result-modal'].forEach(s => document.getElementById(s).classList.add('hidden-screen'));
             document.getElementById(id).classList.remove('hidden-screen');
@@ -308,8 +187,7 @@
 
         function goToMain() {
             if(peer) { peer.destroy(); peer = null; }
-            connections = [];
-            hostConn = null;
+            connections = []; hostConn = null;
             document.getElementById('chat-history').innerHTML = '<div class="chat-system">대기중...</div>';
             showScreen('screen-menu');
         }
@@ -318,46 +196,28 @@
             ['chat', 'status', 'stats'].forEach(t => {
                 document.getElementById(`tab-${t}`).classList.add('hidden-screen');
                 const btn = document.getElementById(`tab-btn-${t}`);
-                if(btn) {
-                    btn.classList.remove('border-blue-500', 'text-white');
-                    btn.classList.add('text-gray-500');
-                }
+                if(btn) { btn.classList.remove('border-blue-500', 'text-white'); btn.classList.add('text-gray-500'); }
             });
             document.getElementById(`tab-${tab}`).classList.remove('hidden-screen');
             const activeBtn = document.getElementById(`tab-btn-${tab}`);
-            if(activeBtn) {
-                activeBtn.classList.remove('text-gray-500');
-                activeBtn.classList.add('border-blue-500', 'text-white');
-            }
+            if(activeBtn) { activeBtn.classList.remove('text-gray-500'); activeBtn.classList.add('border-blue-500', 'text-white'); }
         }
 
         // ==========================================
-        // 1. 싱글 플레이 (버그 수정됨)
+        // 1. 싱글 플레이
         // ==========================================
         function startSinglePlayer() {
             MODE = 'single';
-            GAME.round = 1; GAME.maxRounds = 10;
-            GAME.money = 1000; GAME.bet = 0;
-            GAME.myId = 'single_player';
+            GAME.round = 1; GAME.maxRounds = 10; GAME.money = 1000; GAME.bet = 0; GAME.myId = 'single_player';
             resetTurn();
-            
-            // [수정] 오류를 일으키던 status-indicator 참조 코드를 삭제했습니다.
-            
             document.getElementById('single-highscore').classList.remove('hidden-screen');
             document.getElementById('chat-input-area').classList.add('hidden-screen');
             document.getElementById('turn-indicator').classList.add('hidden');
             document.getElementById('tab-btn-stats').classList.remove('hidden');
-            
-            // 최고 점수 로드
             const best = localStorage.getItem('dv_highscore') || 0;
             document.getElementById('best-score-disp').innerText = parseInt(best).toLocaleString();
-            
             document.getElementById('tab-status').innerHTML = `
-                <div class="bg-gray-800 p-3 rounded border border-blue-500 flex justify-between">
-                    <span class="text-white font-bold">나 (ME)</span>
-                    <span class="text-green-400 font-bold">$1,000</span>
-                </div>`;
-            
+                <div class="bg-gray-800 p-3 rounded border border-blue-500 flex justify-between"><span class="text-white font-bold">나 (ME)</span><span class="text-green-400 font-bold">$1,000</span></div>`;
             if(!myChart) initChart();
             switchTab('chat');
             document.getElementById('chat-history').innerHTML = '<div class="chat-system">게임 로그가 기록됩니다.</div>';
@@ -365,7 +225,6 @@
             updateUI();
         }
 
-        // 차트 초기화
         function initChart() {
             const ctx = document.getElementById('statChart').getContext('2d');
             myChart = new Chart(ctx, { type: 'bar', data: { labels:['1','2','3','4','5','6'], datasets:[{ label:'실험 (%)', data:[0,0,0,0,0,0], backgroundColor:'#3b82f6'}, {type:'line', label:'이론 (16.6%)', data:[16.6,16.6,16.6,16.6,16.6,16.6], borderColor:'#fbbf24', borderDash:[5,5]}] }, options:{ responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true, max:40}}, plugins:{legend:{labels:{color:'white'}}} } });
@@ -377,14 +236,14 @@
         }
 
         // ==========================================
-        // 2. 멀티 플레이
+        // 2. 멀티 플레이 (PeerJS 연결 수정됨)
         // ==========================================
         function setupMultiplayer(role) {
             MODE = 'multi';
             document.getElementById('tab-btn-stats').classList.add('hidden');
             showScreen('screen-lobby');
             if(peer) peer.destroy();
-            peer = new Peer();
+            peer = new Peer({ debug: 2 }); // debug level 추가
             
             peer.on('open', id => {
                 GAME.myId = id;
@@ -399,27 +258,17 @@
                     GAME.isHost = false;
                     document.getElementById('host-ui').classList.add('hidden-screen');
                     document.getElementById('guest-ui').classList.remove('hidden-screen');
-                    
-                    // 버튼 초기화
                     const btn = document.getElementById('join-btn');
-                    btn.disabled = false;
-                    btn.innerText = "연결하기";
-                    btn.classList.remove('opacity-50');
+                    btn.disabled = false; btn.innerText = "연결하기"; btn.classList.remove('opacity-50');
                     document.getElementById('guest-status').classList.add('hidden-screen');
                 }
             });
+
+            // 호스트: 누군가 접속했을 때
             peer.on('connection', conn => {
                 if(GAME.isHost) {
-                    if(GAME.state !== 'lobby') return conn.close();
-                    
-                    // 중복 접속 방지
-                    if(GAME.players.some(p => p.id === conn.peer)) return;
-
-                    connections.push(conn);
+                    // [중요 수정] 바로 데이터 보내지 않고, 상대방이 'JOIN_REQ'를 보낼 때까지 기다림
                     setupConn(conn);
-                    GAME.players.push({id:conn.peer, name:`User ${GAME.players.length+1}`, money:1000, dice:[1,1,1,1,1], rolls:3, bet:0});
-                    broadcast({type:'LOBBY_UPDATE', players:GAME.players});
-                    updateLobbyList();
                 }
             });
         }
@@ -429,42 +278,61 @@
             if(!hostId) return alert("ID 입력");
             
             const btn = document.getElementById('join-btn');
-            btn.disabled = true;
-            btn.classList.add('opacity-50');
-            btn.innerText = "연결 중...";
+            btn.disabled = true; btn.classList.add('opacity-50'); btn.innerText = "연결 중...";
+            document.getElementById('guest-status').classList.remove('hidden-screen');
+            document.getElementById('guest-status').innerText = "호스트 찾는 중...";
 
-            hostConn = peer.connect(hostId);
+            hostConn = peer.connect(hostId, { reliable: true }); // reliable 옵션
+
+            // [중요 수정] 연결이 'open' 되면 그때 리스너를 달고 'JOIN_REQ'를 보냄
             hostConn.on('open', () => {
-                document.getElementById('guest-status').classList.remove('hidden-screen');
-                document.getElementById('guest-status').innerText = "접속 성공! 대기 중...";
+                document.getElementById('guest-status').innerText = "서버 접속 성공! 입장 요청 중...";
                 setupConn(hostConn);
+                hostConn.send({type:'JOIN_REQ', name: `게스트 ${Math.floor(Math.random()*100)}`});
             });
+
             hostConn.on('error', (e) => {
-                alert("연결 실패. ID를 확인하세요.");
-                btn.disabled = false;
-                btn.classList.remove('opacity-50');
-                btn.innerText = "연결하기";
+                alert("연결 실패: " + e);
+                btn.disabled = false; btn.classList.remove('opacity-50'); btn.innerText = "연결하기";
+                document.getElementById('guest-status').classList.add('hidden-screen');
             });
         }
 
         function setupConn(conn) {
             conn.on('data', data => {
+                // [중요 수정] 호스트가 JOIN_REQ를 받으면 그때 플레이어를 추가하고 LOBBY_UPDATE를 보냄
+                if (GAME.isHost && data.type === 'JOIN_REQ') {
+                    if(GAME.state !== 'lobby') return conn.close(); // 게임 중이면 거절
+                    if(GAME.players.some(p => p.id === conn.peer)) return; // 이미 있으면 무시
+
+                    // 1. 플레이어 목록에 추가
+                    const newPlayer = {id:conn.peer, name: `User ${GAME.players.length+1}`, money:1000, dice:[1,1,1,1,1], rolls:3, bet:0};
+                    GAME.players.push(newPlayer);
+                    
+                    // 2. 연결 목록에 추가
+                    connections.push(conn);
+                    
+                    // 3. 전체에게 로비 업데이트 전송 (이제 안전함)
+                    broadcast({type:'LOBBY_UPDATE', players:GAME.players});
+                    updateLobbyList();
+                    return;
+                }
+
+                // 일반 메시지 처리
                 if(data.type === 'CHAT') addChatMessage(data.sender, data.text, false);
-                else if(data.type === 'LOBBY_UPDATE') { GAME.players = data.players; updateLobbyList(); }
+                else if(data.type === 'LOBBY_UPDATE') { 
+                    GAME.players = data.players; 
+                    updateLobbyList(); 
+                    document.getElementById('guest-status').innerText = "입장 완료! 방장이 게임을 시작하길 기다리세요.";
+                }
                 else if(data.type === 'GAME_START') { 
-                    const savedId = GAME.myId;
-                    const savedHost = GAME.isHost;
-                    GAME = data.state; 
-                    GAME.myId = savedId; 
-                    GAME.isHost = savedHost;
+                    const savedId = GAME.myId; const savedHost = GAME.isHost;
+                    GAME = data.state; GAME.myId = savedId; GAME.isHost = savedHost;
                     startMultiGame(); 
                 }
                 else if(data.type === 'STATE_UPDATE') { 
-                    const savedId = GAME.myId;
-                    const savedHost = GAME.isHost;
-                    GAME = data.state;
-                    GAME.myId = savedId;
-                    GAME.isHost = savedHost;
+                    const savedId = GAME.myId; const savedHost = GAME.isHost;
+                    GAME = data.state; GAME.myId = savedId; GAME.isHost = savedHost;
                     updateUI();
                 }
                 else if(data.type === 'GAME_OVER') { showResult(data.rankings); }
@@ -472,7 +340,9 @@
             });
         }
 
-        function broadcast(msg) { if(GAME.isHost) connections.forEach(c => c.send(msg)); }
+        function broadcast(msg) { 
+            if(GAME.isHost) connections.forEach(c => { if(c.open) c.send(msg); }); // open 체크 추가
+        }
         function sendAction(act, pl) {
             if(GAME.isHost) handleHostAction(GAME.myId, act, pl);
             else hostConn.send({type:'ACTION', senderId:GAME.myId, action:act, payload:pl});
@@ -495,6 +365,7 @@
             GAME.turnIdx = 0; GAME.round = 1;
             GAME.players.forEach(p => { p.money=1000; p.dice=[1,2,3,4,5]; p.rolls=3; p.bet=0; });
             const state = JSON.parse(JSON.stringify(GAME));
+            // 확실하게 보내기 위해 약간의 지연 후 전송할 수도 있지만, 핸드셰이크가 되어 있으므로 바로 보냄
             broadcast({type:'GAME_START', state:state});
             startMultiGame();
         }
@@ -510,38 +381,32 @@
         }
 
         // ==========================================
-        // 3. 인게임 액션 (버그 수정됨)
+        // 3. 인게임 액션
         // ==========================================
         function resetTurn() {
-            GAME.dice = [1,2,3,4,5];
-            GAME.locked = [false,false,false,false,false];
-            GAME.rolls = 3; GAME.bet = 0;
-            document.getElementById('bet-slider').value = 0;
-            document.getElementById('bet-slider').disabled = false;
+            GAME.dice = [1,2,3,4,5]; GAME.locked = [false,false,false,false,false]; GAME.rolls = 3; GAME.bet = 0;
+            document.getElementById('bet-slider').value = 0; document.getElementById('bet-slider').disabled = false;
         }
 
         function actionRoll() {
             if(MODE === 'multi' && !isMyTurn()) return;
             
-            // [수정] 멀티플레이 시 전역 GAME.rolls가 아닌 내 플레이어 정보의 rolls 확인
+            // [수정] 멀티플레이 동기화 오류 방지
             let currentRolls = GAME.rolls;
             if (MODE === 'multi') {
                 const me = GAME.players.find(p => p.id === GAME.myId);
                 if (me) currentRolls = me.rolls;
             }
 
-            if(currentRolls <= 0) return; // 수정된 변수로 체크
+            if(currentRolls <= 0) return;
             
             const bet = parseInt(document.getElementById('bet-slider').value);
             if(bet <= 0) return alert("투자를 하세요!");
             if(bet > GAME.money) return alert("자금이 부족합니다.");
             
             if(MODE === 'single') {
-                GAME.bet = bet;
-                GAME.rolls--;
-                localRoll();
-                document.getElementById('bet-slider').disabled = true;
-                updateUI();
+                GAME.bet = bet; GAME.rolls--; localRoll();
+                document.getElementById('bet-slider').disabled = true; updateUI();
             } else {
                 sendAction('ROLL', {bet:bet, locked:GAME.locked});
             }
@@ -551,24 +416,18 @@
             if(MODE === 'multi' && !isMyTurn()) return;
             if(MODE === 'single') {
                 if(GAME.bet === 0) return alert("게임 진행 안됨");
-                const h = evaluate(GAME.dice);
-                const prof = Math.floor(GAME.bet * h.mult);
-                const net = prof - GAME.bet;
+                const h = evaluate(GAME.dice); const prof = Math.floor(GAME.bet * h.mult); const net = prof - GAME.bet;
                 GAME.money += net;
                 addChatMessage('시스템', `라운드 ${GAME.round}: ${net>=0?'+':''}${net} (${h.name})`, false);
-                
                 GAME.round++;
                 if(GAME.round > GAME.maxRounds) {
                     const best = Math.max(GAME.money, parseInt(localStorage.getItem('dv_highscore')||0));
-                    localStorage.setItem('dv_highscore', best);
-                    showResult([{name:'나', money:GAME.money}]);
+                    localStorage.setItem('dv_highscore', best); showResult([{name:'나', money:GAME.money}]);
                 } else {
-                    resetTurn();
-                    updateUI();
+                    resetTurn(); updateUI();
                 }
             } else {
-                const bet = parseInt(document.getElementById('bet-slider').value);
-                sendAction('KEEP', {bet:bet});
+                const bet = parseInt(document.getElementById('bet-slider').value); sendAction('KEEP', {bet:bet});
             }
         }
 
@@ -579,28 +438,21 @@
                 GAME.dice = GAME.dice.map((v,i) => {
                     if(GAME.locked[i]) return v;
                     const r = Math.floor(Math.random()*6)+1;
-                    singleStats[r-1]++; singleTotal++;
-                    return r;
+                    singleStats[r-1]++; singleTotal++; return r;
                 });
-                els.forEach(el => el.classList.remove('rolling'));
-                updateUI(); updateChart();
+                els.forEach(el => el.classList.remove('rolling')); updateUI(); updateChart();
             }, 400);
         }
 
         function toggleLock(i) {
             if(MODE==='multi' && !isMyTurn()) return;
-            
-            // [수정] 잠금 기능도 내 플레이어 정보를 기준으로 확인
             let currentRolls = GAME.rolls;
             if (MODE === 'multi') {
                 const me = GAME.players.find(p => p.id === GAME.myId);
                 if (me) currentRolls = me.rolls;
             }
-
-            if(currentRolls === 3) return; // 굴리기 전 잠금 불가
-            
-            GAME.locked[i] = !GAME.locked[i];
-            updateUI();
+            if(currentRolls === 3) return;
+            GAME.locked[i] = !GAME.locked[i]; updateUI();
         }
 
         function updateUI() {
@@ -617,17 +469,13 @@
             
             if(!isSingle) {
                 if(isMe) {
-                    ind.innerText = "⭐ 나의 턴";
-                    ind.className = "text-lg font-bold text-black bg-yellow-400 px-6 py-2 rounded-full animate-bounce";
+                    ind.innerText = "⭐ 나의 턴"; ind.className = "text-lg font-bold text-black bg-yellow-400 px-6 py-2 rounded-full animate-bounce";
                     controls.classList.remove('opacity-50', 'pointer-events-none');
                 } else {
-                    ind.innerText = `${curP.name} 턴...`;
-                    ind.className = "text-lg font-bold text-gray-400 bg-gray-700 px-6 py-2 rounded-full border border-gray-600";
+                    ind.innerText = `${curP.name} 턴...`; ind.className = "text-lg font-bold text-gray-400 bg-gray-700 px-6 py-2 rounded-full border border-gray-600";
                     controls.classList.add('opacity-50', 'pointer-events-none');
                 }
-            } else {
-                controls.classList.remove('opacity-50', 'pointer-events-none');
-            }
+            } else { controls.classList.remove('opacity-50', 'pointer-events-none'); }
 
             const displayDice = isSingle ? GAME.dice : curP.dice;
             const displayLocked = isSingle ? GAME.locked : (isMe ? GAME.locked : [false,false,false,false,false]);
@@ -638,13 +486,8 @@
             document.getElementById('hand-rank').innerText = res.name;
             document.getElementById('hand-mult').innerText = `x${res.mult}`;
             document.getElementById('rolls-left').innerText = isSingle ? GAME.rolls : curP.rolls;
-            if(!isMe && !isSingle) {
-                document.getElementById('bet-display').innerText = curP.bet;
-            } else {
-                const s = document.getElementById('bet-slider');
-                s.max = me.money;
-                document.getElementById('bet-display').innerText = s.value;
-            }
+            if(!isMe && !isSingle) { document.getElementById('bet-display').innerText = curP.bet; } 
+            else { const s = document.getElementById('bet-slider'); s.max = me.money; document.getElementById('bet-display').innerText = s.value; }
 
             if(!isSingle) {
                 document.getElementById('tab-status').innerHTML = GAME.players.map(p => `
@@ -655,47 +498,32 @@
             }
         }
 
-        // --- Host Logic ---
         function handleHostAction(pid, act, pl) {
-            if(act === 'CHAT') {
-                broadcast({type:'CHAT', sender:pl.name, text:pl.text});
-                addChatMessage(pl.name, pl.text, false);
-                return;
-            }
-
+            if(act === 'CHAT') { broadcast({type:'CHAT', sender:pl.name, text:pl.text}); addChatMessage(pl.name, pl.text, false); return; }
             const pIdx = GAME.players.findIndex(p=>p.id===pid);
             if(pIdx !== GAME.turnIdx) return;
             const p = GAME.players[pIdx];
 
             if(act === 'ROLL') {
                 if(p.rolls > 0) {
-                    p.bet = pl.bet;
-                    p.rolls--;
-                    p.dice = p.dice.map((v, i) => pl.locked[i] ? v : Math.floor(Math.random()*6)+1);
-                    broadcast({type:'STATE_UPDATE', state:GAME});
-                    if(GAME.isHost) updateUI();
+                    p.bet = pl.bet; p.rolls--; p.dice = p.dice.map((v, i) => pl.locked[i] ? v : Math.floor(Math.random()*6)+1);
+                    broadcast({type:'STATE_UPDATE', state:GAME}); if(GAME.isHost) updateUI();
                 }
             } else if(act === 'KEEP') {
-                const res = evaluate(p.dice);
-                const prof = Math.floor(p.bet * res.mult);
-                const net = prof - p.bet;
+                const res = evaluate(p.dice); const prof = Math.floor(p.bet * res.mult); const net = prof - p.bet;
                 p.money += net;
                 broadcast({type:'CHAT', sender:'시스템', text:`${p.name}: ${net>=0?'+':''}${net} (${res.name})`});
                 p.rolls=3; p.bet=0; GAME.locked=[false,false,false,false,false];
-                
                 GAME.turnIdx++;
                 if(GAME.turnIdx >= GAME.players.length) {
-                    GAME.turnIdx = 0;
-                    GAME.round++;
+                    GAME.turnIdx = 0; GAME.round++;
                     if(GAME.round > GAME.maxRounds) {
                         const ranks = [...GAME.players].sort((a,b)=>b.money-a.money);
                         broadcast({type:'GAME_OVER', rankings:ranks}); showResult(ranks); return;
                     }
                 }
-                const nextP = GAME.players[GAME.turnIdx];
-                nextP.rolls=3; nextP.bet=0;
-                broadcast({type:'STATE_UPDATE', state:GAME});
-                if(GAME.isHost) updateUI();
+                const nextP = GAME.players[GAME.turnIdx]; nextP.rolls=3; nextP.bet=0;
+                broadcast({type:'STATE_UPDATE', state:GAME}); if(GAME.isHost) updateUI();
             }
         }
 
@@ -715,11 +543,8 @@
                     <span class="text-green-400 font-bold">$${p.money.toLocaleString()}</span>
                 </div>`).join('');
         }
-
         function sendChat() {
-            const input = document.getElementById('chat-msg');
-            const txt = input.value.trim();
-            if(!txt) return;
+            const input = document.getElementById('chat-msg'); const txt = input.value.trim(); if(!txt) return;
             const name = MODE==='single' ? '나' : GAME.players.find(p=>p.id===GAME.myId)?.name;
             addChatMessage(name, txt, true);
             if(MODE==='multi') {
@@ -729,12 +554,9 @@
             input.value = '';
         }
         function addChatMessage(sender, text, mine) {
-            const box = document.getElementById('chat-history');
-            const d = document.createElement('div');
-            d.className = `chat-bubble ${mine?'chat-mine':'chat-other'}`;
-            d.innerHTML = `<strong>${sender}</strong><br>${text}`;
-            box.appendChild(d);
-            box.scrollTop = box.scrollHeight;
+            const box = document.getElementById('chat-history'); const d = document.createElement('div');
+            d.className = `chat-bubble ${mine?'chat-mine':'chat-other'}`; d.innerHTML = `<strong>${sender}</strong><br>${text}`;
+            box.appendChild(d); box.scrollTop = box.scrollHeight;
         }
     </script>
 </body>
