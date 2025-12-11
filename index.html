@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎲 Dice Vestor: Advanced Rules</title>
+    <title>🎲 Dice Vestor: Short ID</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -122,9 +122,9 @@
         <h2 class="text-3xl font-title text-white mb-6">LOBBY</h2>
         <div id="host-ui" class="hidden-screen mb-6">
             <div class="bg-black/40 p-4 rounded-xl border border-white/10 mb-4">
-                <p class="text-xs text-gray-400 mb-1">초대 코드</p>
+                <p class="text-xs text-gray-400 mb-1">초대 코드 (친구에게 알려주세요)</p>
                 <div class="flex items-center justify-center gap-2">
-                    <span id="my-peer-id" class="text-xl font-bold text-yellow-400 select-all">Loading...</span>
+                    <span id="my-peer-id" class="text-3xl font-title text-yellow-400 select-all tracking-widest">...</span>
                     <button onclick="copyId()" class="text-xs bg-white/10 px-2 py-1 rounded hover:bg-white/20">복사</button>
                 </div>
             </div>
@@ -136,7 +136,7 @@
             <button id="start-game-btn" onclick="broadcastStart()" class="btn-glow w-full py-3 bg-green-600 text-white font-bold rounded-xl disabled:opacity-50" disabled>게임 시작</button>
         </div>
         <div id="guest-ui" class="hidden-screen mb-6">
-            <input type="text" id="host-id-input" placeholder="방장 ID 입력" class="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-center text-white mb-3 outline-none">
+            <input type="text" id="host-id-input" placeholder="코드 입력 (예: A1B2)" class="w-full p-4 bg-black/30 border border-white/10 rounded-xl text-center text-white text-xl font-bold uppercase mb-3 outline-none tracking-widest">
             <button id="join-btn" onclick="joinRoom()" class="btn-glow w-full py-3 bg-purple-600 text-white font-bold rounded-xl">연결하기</button>
             <p id="guest-status" class="mt-2 text-yellow-400 text-xs animate-pulse hidden-screen">대기중...</p>
         </div>
@@ -154,7 +154,7 @@
 
     <script>
         // ==========================================
-        // 0. 전역 설정
+        // 0. 전역 설정 & ID 생성 유틸
         // ==========================================
         let MODE = 'single';
         let GAME = { 
@@ -164,28 +164,23 @@
         };
         let peer = null, connections = [], hostConn = null;
         let singleStats = [0,0,0,0,0,0], singleTotal = 0, myChart = null;
-        
-        // ==========================================
-        // [수정됨] 족보 로직 (라지/스몰 스트레이트 세분화)
-        // ==========================================
-        function getUniqueStr(d) {
-            return [...new Set(d)].sort((a,b)=>a-b).join('');
-        }
 
+        // [수정] 4~5자리 랜덤 ID 생성 함수 (대문자+숫자)
+        function generateShortId() {
+            return Math.random().toString(36).substr(2, 5).toUpperCase();
+        }
+        
+        // 족보 로직 (라지/스몰 스트레이트 포함)
+        function getUniqueStr(d) { return [...new Set(d)].sort((a,b)=>a-b).join(''); }
         const HANDS = [
             { name: "Yacht", mult: 10, check: d=>hasKind(d,5) }, 
             { name: "4 Kind", mult: 5, check: d=>hasKind(d,4) },
             { name: "Full House", mult: 3, check: d=>isFullHouse(d) },
-            
-            // 라지 스트레이트 (5개 연속)
             { name: "L-Straight (2-6)", mult: 5.0, check: d => getUniqueStr(d) === '23456' },
             { name: "L-Straight (1-5)", mult: 4.0, check: d => getUniqueStr(d) === '12345' },
-
-            // 스몰 스트레이트 (4개 연속)
             { name: "S-Straight (3-6)", mult: 2.5, check: d => getUniqueStr(d).includes('3456') },
             { name: "S-Straight (2-5)", mult: 2.2, check: d => getUniqueStr(d).includes('2345') },
             { name: "S-Straight (1-4)", mult: 2.0, check: d => getUniqueStr(d).includes('1234') },
-
             { name: "3 Kind", mult: 1.5, check: d=>hasKind(d,3) }, 
             { name: "2 Pair", mult: 1.0, check: d=>isTwoPair(d) },
             { name: "1 Pair", mult: 0.5, check: d=>hasKind(d,2) }, 
@@ -196,7 +191,6 @@
         function hasKind(d,n){const c={};d.forEach(x=>c[x]=(c[x]||0)+1);return Object.values(c).some(v=>v>=n);}
         function isFullHouse(d){const c={};d.forEach(x=>c[x]=(c[x]||0)+1);const v=Object.values(c);return (v.includes(3)&&v.includes(2))||v.includes(5);}
         function isTwoPair(d){const c={};d.forEach(x=>c[x]=(c[x]||0)+1);return Object.values(c).filter(v=>v>=2).length>=2;}
-        // ==========================================
 
         function showScreen(id) {
             ['screen-menu', 'screen-lobby', 'screen-game', 'result-modal'].forEach(s => document.getElementById(s).classList.add('hidden-screen'));
@@ -257,14 +251,17 @@
         }
 
         // ==========================================
-        // 2. 멀티 플레이
+        // 2. 멀티 플레이 (짧은 ID 적용)
         // ==========================================
         function setupMultiplayer(role) {
             MODE = 'multi';
             document.getElementById('tab-btn-stats').classList.add('hidden');
             showScreen('screen-lobby');
             if(peer) peer.destroy();
-            peer = new Peer({ debug: 2 });
+            
+            // [수정] 짧은 ID 생성
+            const shortId = generateShortId();
+            peer = new Peer(shortId, { debug: 1 }); // 짧은 ID 사용
             
             peer.on('open', id => {
                 GAME.myId = id;
@@ -285,6 +282,16 @@
                 }
             });
 
+            // ID 중복 에러 처리 (아주 드문 경우)
+            peer.on('error', (err) => {
+                if(err.type === 'unavailable-id') {
+                    alert("ID 생성 충돌! 다시 시도해주세요.");
+                    setupMultiplayer(role); // 재시도
+                } else {
+                    console.error(err);
+                }
+            });
+
             peer.on('connection', conn => {
                 if(GAME.isHost) {
                     setupConn(conn);
@@ -293,21 +300,28 @@
         }
 
         function joinRoom() {
-            const hostId = document.getElementById('host-id-input').value;
-            if(!hostId) return alert("ID 입력");
+            let hostId = document.getElementById('host-id-input').value.trim().toUpperCase(); // 대문자 변환
+            if(!hostId) return alert("코드를 입력하세요");
             
             const btn = document.getElementById('join-btn');
-            btn.disabled = true; btn.classList.add('opacity-50'); btn.innerText = "연결 중...";
+            btn.disabled = true; btn.classList.add('opacity-50'); btn.innerText = "연결 시도 중...";
             document.getElementById('guest-status').classList.remove('hidden-screen');
-            document.getElementById('guest-status').innerText = "호스트 찾는 중...";
+            document.getElementById('guest-status').innerText = "📡 네트워크 경로 탐색 중... (최대 10초)";
 
             hostConn = peer.connect(hostId, { reliable: true });
 
             hostConn.on('open', () => {
-                document.getElementById('guest-status').innerText = "서버 접속 성공! 입장 요청 중...";
+                document.getElementById('guest-status').innerText = "✅ 서버 발견! 입장 요청 중...";
                 setupConn(hostConn);
                 hostConn.send({type:'JOIN_REQ', name: `게스트 ${Math.floor(Math.random()*100)}`});
             });
+
+            // 5초 후에도 연결 안되면 힌트 제공
+            setTimeout(() => {
+                if(btn.disabled && document.getElementById('guest-status').innerText.includes('탐색 중')) {
+                     document.getElementById('guest-status').innerText = "⚠️ 연결이 지연되고 있습니다... (방화벽 확인)";
+                }
+            }, 5000);
 
             hostConn.on('error', (e) => {
                 alert("연결 실패: " + e);
@@ -333,7 +347,7 @@
                 else if(data.type === 'LOBBY_UPDATE') { 
                     GAME.players = data.players; 
                     updateLobbyList(); 
-                    document.getElementById('guest-status').innerText = "입장 완료! 방장이 게임을 시작하길 기다리세요.";
+                    document.getElementById('guest-status').innerText = "🎉 입장 완료! 게임 대기 중...";
                 }
                 else if(data.type === 'GAME_START') { 
                     const savedId = GAME.myId; const savedHost = GAME.isHost;
