@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎲 Dice Vestor: Perfect Fix</title>
+    <title>🎲 Dice Vestor: Final Stable</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --glass-bg: rgba(30, 41, 59, 0.9);
+            --glass-bg: rgba(30, 41, 59, 0.95);
             --glass-border: rgba(255, 255, 255, 0.1);
         }
 
@@ -20,64 +20,82 @@
             font-family: 'Noto Sans KR', sans-serif;
             user-select: none;
             overflow: hidden;
+            /* 배경 */
             background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.15) 0px, transparent 50%);
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%);
         }
 
+        /* 배경 그리드 (클릭 방지 필수) */
         .bg-grid {
-            position: absolute; inset: 0; z-index: 0;
+            position: absolute;
+            inset: 0; z-index: 0;
             background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
             linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
             background-size: 40px 40px;
-            pointer-events: none;
+            pointer-events: none; /* 중요: 클릭 통과 */
         }
 
         .font-title { font-family: 'Russo One', sans-serif; letter-spacing: 1px; }
         .hidden-screen { display: none !important; }
 
-        /* 패널 스타일 */
+        /* 패널 */
         .glass-panel {
             background: var(--glass-bg);
             backdrop-filter: blur(12px);
             border: 1px solid var(--glass-border);
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
             position: relative;
+            z-index: 10;
         }
 
         /* 주사위 */
         .die {
-            width: 55px; height: 55px;
+            width: 55px;
+            height: 55px;
             background: linear-gradient(145deg, #f8fafc, #cbd5e1); color: #1e293b;
             border-radius: 12px; display: flex; align-items: center; justify-content: center;
-            font-size: 1.8rem; font-weight: bold; cursor: pointer; transition: all 0.2s;
+            font-size: 1.8rem; font-weight: bold;
+            cursor: pointer; transition: all 0.2s;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3); border: 1px solid #fff;
         }
         .die:hover { transform: translateY(-2px); }
         .die.locked {
-            background: linear-gradient(145deg, #ef4444, #b91c1c); color: white; border-color: #fca5a5;
+            background: linear-gradient(145deg, #ef4444, #b91c1c);
+            color: white; border-color: #fca5a5;
             box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); transform: translateY(2px);
         }
         .die-lg { width: 75px; height: 75px; font-size: 2.5rem; }
         .rolling { animation: roll-shake 0.4s infinite; }
-        @keyframes roll-shake { 0% { transform: rotate(0deg); } 25% { transform: rotate(5deg); } 75% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } }
+        @keyframes roll-shake { 
+            0% { transform: rotate(0deg); } 25% { transform: rotate(5deg); } 
+            75% { transform: rotate(-5deg); } 100% { transform: rotate(0deg); } 
+        }
 
-        /* 버튼 효과 (z-index 상향 조정으로 클릭 문제 해결) */
-        .btn-glow { position: relative; overflow: hidden; transition: all 0.2s; z-index: 50; cursor: pointer; }
+        /* 버튼 */
+        .btn-glow { 
+            position: relative;
+            overflow: hidden; transition: all 0.2s; 
+            z-index: 50; /* 클릭 우선순위 높임 */
+            cursor: pointer;
+        }
         .btn-glow:hover { transform: translateY(-2px); filter: brightness(1.2); }
         .btn-glow:active { transform: translateY(0); filter: brightness(0.9); }
+        .btn-glow:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); transform: none; }
 
         /* 뒤로가기 버튼 */
         .back-btn {
-            position: absolute; top: 20px; left: 20px; z-index: 100;
+            position: absolute;
+            top: 20px; left: 20px; z-index: 100;
             background: rgba(255,255,255,0.1); color: #94a3b8;
             padding: 8px 16px; border-radius: 999px;
-            font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            font-size: 0.85rem; font-weight: 600;
+            cursor: pointer;
             border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 6px;
         }
         .back-btn:hover { background: rgba(255,255,255,0.2); color: white; }
 
-        /* 채팅 스타일 */
+        /* 채팅 */
         .chat-bubble { padding: 6px 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 6px; word-break: break-all; }
         .chat-system { color: #fbbf24; font-size: 0.75rem; text-align: center; margin: 8px 0; opacity: 0.8; }
         .chat-mine { background: #3b82f6; color: white; align-self: flex-end; margin-left: 20%; text-align: right; }
@@ -102,12 +120,13 @@
         <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/></svg> 메인으로
     </button>
 
-    <div id="screen-menu" class="glass-panel w-full max-w-md p-10 rounded-3xl text-center relative z-20">
+    <div id="screen-menu" class="glass-panel w-full max-w-md p-10 rounded-3xl text-center relative z-50">
         <div class="absolute -top-10 -left-10 w-32 h-32 bg-blue-500 rounded-full blur-[80px] opacity-30 pointer-events-none"></div>
+    
         <h1 class="text-6xl font-title text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-2 drop-shadow-sm">DICE VESTOR</h1>
         <p class="text-gray-400 mb-10 text-sm tracking-wide">투자 & 확률 전략 게임</p>
         
-        <div class="space-y-4">
+        <div class="space-y-4 relative z-50">
             <button onclick="startSinglePlayer()" class="btn-glow w-full py-5 bg-gradient-to-r from-slate-700 to-slate-800 border border-slate-600 text-white font-bold rounded-2xl text-lg flex items-center justify-between px-6 group">
                 <div class="text-left">
                     <span class="block group-hover:text-blue-300 transition">👤 개인 플레이</span>
@@ -115,10 +134,12 @@
                 </div>
                 <span class="text-2xl">🏆</span>
             </button>
+ 
             <div class="grid grid-cols-2 gap-4">
                 <button onclick="setupMultiplayer('host')" class="btn-glow py-5 bg-gradient-to-br from-green-900/80 to-green-800/80 border border-green-700 hover:border-green-400 text-white font-bold rounded-2xl flex flex-col items-center justify-center gap-1 group">
                     <span class="text-2xl">🏠</span><span>방 만들기</span><span class="text-[10px] text-green-300/70">Host</span>
                 </button>
+            
                 <button onclick="setupMultiplayer('guest')" class="btn-glow py-5 bg-gradient-to-br from-purple-900/80 to-purple-800/80 border border-purple-700 hover:border-purple-400 text-white font-bold rounded-2xl flex flex-col items-center justify-center gap-1 group">
                     <span class="text-2xl">🔗</span><span>참가하기</span><span class="text-[10px] text-purple-300/70">Guest</span>
                 </button>
@@ -146,18 +167,16 @@
             </div>
 
             <div class="flex-1 flex flex-col items-center justify-center">
-                <div class="flex gap-4 mb-8" id="dice-container">
+                <div class="flex gap-6 mb-10" id="dice-container">
                     <div class="die die-lg" onclick="toggleLock(0)">1</div>
                     <div class="die die-lg" onclick="toggleLock(1)">2</div>
                     <div class="die die-lg" onclick="toggleLock(2)">3</div>
                     <div class="die die-lg" onclick="toggleLock(3)">4</div>
                     <div class="die die-lg" onclick="toggleLock(4)">5</div>
                 </div>
-                <div class="text-center h-24">
-                    <div class="text-sm text-gray-400 mb-1">HAND RANK</div>
-                    <div class="text-5xl font-title text-yellow-400 drop-shadow-md tracking-wider mb-2" id="hand-rank">-</div>
-                    <div class="text-xl font-bold text-green-400" id="hand-mult">x0.0</div>
-                </div>
+               
+                <div class="text-5xl font-title text-yellow-400 h-16 drop-shadow-md tracking-wider" id="hand-rank">-</div>
+                <div class="text-xl font-bold text-green-400" id="hand-mult">x0.0</div>
             </div>
 
             <div id="control-panel" class="mt-auto transition duration-300 bg-black/20 p-6 rounded-2xl border border-white/5">
@@ -166,16 +185,19 @@
                         <span>현재 자산: $<span id="current-money">1,000</span></span>
                         <span class="text-green-400 text-lg">투자: $<span id="bet-display">0</span></span>
                     </div>
+                   
                     <input type="range" id="bet-slider" class="w-full" min="0" max="1000" step="10">
                     <div class="flex justify-between text-[10px] text-gray-500 mt-1">
                         <span>0%</span><span>50%</span><span>100%</span>
                     </div>
                 </div>
+        
                 <div class="flex gap-4">
-                    <button id="btn-roll" onclick="actionRoll()" class="btn-glow flex-1 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xl shadow-lg border-b-4 border-blue-800 active:border-b-0 active:translate-y-1">
+                    <button id="btn-roll" onclick="actionRoll()" class="btn-glow flex-1 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xl shadow-lg">
                         ROLL (<span id="rolls-left">3</span>)
                     </button>
-                    <button id="btn-keep" onclick="actionKeep()" class="btn-glow flex-1 py-4 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl text-xl shadow-lg border-b-4 border-green-800 active:border-b-0 active:translate-y-1">
+            
+                    <button id="btn-keep" onclick="actionKeep()" class="btn-glow flex-1 py-4 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl text-xl shadow-lg">
                         KEEP
                     </button>
                 </div>
@@ -190,17 +212,17 @@
             </div>
 
             <div id="tab-chat" class="flex-1 flex flex-col h-full">
-                <div id="chat-history" class="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-2 text-sm h-0">
-                    <div class="chat-system">게임에 입장했습니다.</div>
+                <div id="chat-history" class="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-2 space-y-2 text-sm h-0">
+                    <div class="chat-system">게임 대기중...</div>
                 </div>
-                <div id="chat-input-area" class="mt-2 flex gap-2">
-                    <input type="text" id="chat-msg" class="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500" placeholder="메시지..." onkeypress="if(event.key==='Enter') sendChat()">
+ 
+                <div id="chat-input-area" class="mt-2 flex gap-2 hidden-screen">
+                    <input type="text" id="chat-msg" class="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none" placeholder="메시지..." onkeypress="if(event.key==='Enter') sendChat()">
                     <button onclick="sendChat()" class="bg-blue-600 text-white px-3 rounded-lg text-sm font-bold hover:bg-blue-500">전송</button>
                 </div>
             </div>
 
-            <div id="tab-status" class="hidden-screen flex-1 overflow-y-auto custom-scrollbar space-y-2 p-1">
-                </div>
+            <div id="tab-status" class="hidden-screen flex-1 overflow-y-auto custom-scrollbar space-y-2 p-1"></div>
 
             <div id="tab-stats" class="hidden-screen flex-1 flex flex-col p-1">
                 <div class="flex-1 bg-black/20 rounded-xl p-2 relative h-48">
@@ -212,7 +234,7 @@
         </div>
     </div>
 
-    <div id="screen-lobby" class="hidden-screen glass-panel w-full max-w-md p-8 rounded-3xl text-center mt-10 relative z-20">
+    <div id="screen-lobby" class="hidden-screen glass-panel w-full max-w-md p-8 rounded-3xl text-center mt-10 relative z-50">
         <h2 class="text-3xl font-title text-white mb-6">LOBBY</h2>
         
         <div id="host-ui" class="hidden-screen mb-6">
@@ -232,8 +254,8 @@
         </div>
 
         <div id="guest-ui" class="hidden-screen mb-6">
-            <input type="text" id="host-id-input" placeholder="방장 ID 입력" class="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-center text-white mb-3 focus:border-purple-500 outline-none">
-            <button onclick="joinRoom()" class="btn-glow w-full py-3 bg-purple-600 text-white font-bold rounded-xl">연결하기</button>
+            <input type="text" id="host-id-input" placeholder="방장 ID 입력" class="w-full p-3 bg-black/30 border border-white/10 rounded-xl text-center text-white mb-3 outline-none">
+            <button id="join-btn" onclick="joinRoom()" class="btn-glow w-full py-3 bg-purple-600 text-white font-bold rounded-xl">연결하기</button>
             <p id="guest-status" class="mt-2 text-yellow-400 text-xs animate-pulse hidden-screen">대기중...</p>
         </div>
 
@@ -261,7 +283,7 @@
         };
         let peer = null, connections = [], hostConn = null;
         let singleStats = [0,0,0,0,0,0], singleTotal = 0, myChart = null;
-
+        
         // 족보
         const HANDS = [
             { name: "Yacht", mult: 10, check: d=>hasKind(d,5) }, { name: "4 Kind", mult: 5, check: d=>hasKind(d,4) },
@@ -286,9 +308,9 @@
 
         function goToMain() {
             if(peer) { peer.destroy(); peer = null; }
-            connections = []; hostConn = null;
+            connections = [];
+            hostConn = null;
             document.getElementById('chat-history').innerHTML = '<div class="chat-system">대기중...</div>';
-            GAME.state = 'lobby';
             showScreen('screen-menu');
         }
 
@@ -310,7 +332,7 @@
         }
 
         // ==========================================
-        // 1. 싱글 플레이 (개인 기록 도전)
+        // 1. 싱글 플레이 (버그 수정됨)
         // ==========================================
         function startSinglePlayer() {
             MODE = 'single';
@@ -319,33 +341,31 @@
             GAME.myId = 'single_player';
             resetTurn();
             
-            // 싱글 UI 세팅
-            document.getElementById('status-indicator').innerText = "싱글 모드";
-            document.getElementById('status-indicator').className = "text-lg font-bold text-blue-400 bg-blue-900/30 px-6 py-2 rounded-full border border-blue-500/30";
-            document.getElementById('single-highscore').classList.remove('hidden');
-            document.getElementById('turn-indicator').classList.add('hidden');
-            document.getElementById('tab-btn-stats').classList.remove('hidden'); // 통계 탭 표시
+            // [수정] 오류를 일으키던 status-indicator 참조 코드를 삭제했습니다.
             
-            // 싱글은 채팅을 메모장으로 사용
-            document.getElementById('chat-history').innerHTML = '<div class="chat-system">게임 로그가 여기에 표시됩니다.</div>';
+            document.getElementById('single-highscore').classList.remove('hidden-screen');
+            document.getElementById('chat-input-area').classList.add('hidden-screen');
+            document.getElementById('turn-indicator').classList.add('hidden');
+            document.getElementById('tab-btn-stats').classList.remove('hidden');
             
             // 최고 점수 로드
             const best = localStorage.getItem('dv_highscore') || 0;
             document.getElementById('best-score-disp').innerText = parseInt(best).toLocaleString();
             
-            // 싱글용 현황판
             document.getElementById('tab-status').innerHTML = `
                 <div class="bg-gray-800 p-3 rounded border border-blue-500 flex justify-between">
                     <span class="text-white font-bold">나 (ME)</span>
                     <span class="text-green-400 font-bold">$1,000</span>
                 </div>`;
-
+            
             if(!myChart) initChart();
             switchTab('chat');
+            document.getElementById('chat-history').innerHTML = '<div class="chat-system">게임 로그가 기록됩니다.</div>';
             showScreen('screen-game');
             updateUI();
         }
 
+        // 차트 초기화
         function initChart() {
             const ctx = document.getElementById('statChart').getContext('2d');
             myChart = new Chart(ctx, { type: 'bar', data: { labels:['1','2','3','4','5','6'], datasets:[{ label:'실험 (%)', data:[0,0,0,0,0,0], backgroundColor:'#3b82f6'}, {type:'line', label:'이론 (16.6%)', data:[16.6,16.6,16.6,16.6,16.6,16.6], borderColor:'#fbbf24', borderDash:[5,5]}] }, options:{ responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true, max:40}}, plugins:{legend:{labels:{color:'white'}}} } });
@@ -361,7 +381,7 @@
         // ==========================================
         function setupMultiplayer(role) {
             MODE = 'multi';
-            document.getElementById('tab-btn-stats').classList.add('hidden'); // 멀티는 통계 숨김
+            document.getElementById('tab-btn-stats').classList.add('hidden');
             showScreen('screen-lobby');
             if(peer) peer.destroy();
             peer = new Peer();
@@ -379,12 +399,22 @@
                     GAME.isHost = false;
                     document.getElementById('host-ui').classList.add('hidden-screen');
                     document.getElementById('guest-ui').classList.remove('hidden-screen');
+                    
+                    // 버튼 초기화
+                    const btn = document.getElementById('join-btn');
+                    btn.disabled = false;
+                    btn.innerText = "연결하기";
+                    btn.classList.remove('opacity-50');
+                    document.getElementById('guest-status').classList.add('hidden-screen');
                 }
             });
-
             peer.on('connection', conn => {
                 if(GAME.isHost) {
                     if(GAME.state !== 'lobby') return conn.close();
+                    
+                    // 중복 접속 방지
+                    if(GAME.players.some(p => p.id === conn.peer)) return;
+
                     connections.push(conn);
                     setupConn(conn);
                     GAME.players.push({id:conn.peer, name:`User ${GAME.players.length+1}`, money:1000, dice:[1,1,1,1,1], rolls:3, bet:0});
@@ -396,11 +426,24 @@
 
         function joinRoom() {
             const hostId = document.getElementById('host-id-input').value;
-            if(!hostId) return alert("ID를 입력하세요");
+            if(!hostId) return alert("ID 입력");
+            
+            const btn = document.getElementById('join-btn');
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            btn.innerText = "연결 중...";
+
             hostConn = peer.connect(hostId);
             hostConn.on('open', () => {
                 document.getElementById('guest-status').classList.remove('hidden-screen');
+                document.getElementById('guest-status').innerText = "접속 성공! 대기 중...";
                 setupConn(hostConn);
+            });
+            hostConn.on('error', (e) => {
+                alert("연결 실패. ID를 확인하세요.");
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+                btn.innerText = "연결하기";
             });
         }
 
@@ -409,7 +452,7 @@
                 if(data.type === 'CHAT') addChatMessage(data.sender, data.text, false);
                 else if(data.type === 'LOBBY_UPDATE') { GAME.players = data.players; updateLobbyList(); }
                 else if(data.type === 'GAME_START') { 
-                    const savedId = GAME.myId; // 내 ID 보존
+                    const savedId = GAME.myId;
                     const savedHost = GAME.isHost;
                     GAME = data.state; 
                     GAME.myId = savedId; 
@@ -438,31 +481,40 @@
         function updateLobbyList() {
             document.getElementById('player-list').innerHTML = GAME.players.map(p => `<li class="${p.id===GAME.myId?'text-yellow-400':''}">${p.name}</li>`).join('');
             document.getElementById('player-count').innerText = GAME.players.length;
-            if(GAME.isHost) document.getElementById('start-game-btn').disabled = GAME.players.length < 2;
+            if(GAME.isHost) {
+                const btn = document.getElementById('start-game-btn');
+                if(GAME.players.length >= 2) { btn.disabled = false; btn.classList.remove('opacity-50'); }
+                else { btn.disabled = true; btn.classList.add('opacity-50'); }
+            }
         }
 
         function setRounds(n) { GAME.maxRounds = n; document.querySelectorAll('.round-btn').forEach(b => b.classList.replace('bg-blue-600','bg-gray-600')); event.target.classList.replace('bg-gray-600','bg-blue-600'); }
+        
         function broadcastStart() {
-            GAME.state = 'playing'; GAME.turnIdx = 0; GAME.round = 1;
+            GAME.state = 'playing';
+            GAME.turnIdx = 0; GAME.round = 1;
             GAME.players.forEach(p => { p.money=1000; p.dice=[1,2,3,4,5]; p.rolls=3; p.bet=0; });
             const state = JSON.parse(JSON.stringify(GAME));
-            broadcast({type:'GAME_START', state:state}); startMultiGame();
+            broadcast({type:'GAME_START', state:state});
+            startMultiGame();
         }
 
         function startMultiGame() {
             showScreen('screen-game');
-            document.getElementById('single-highscore').classList.add('hidden');
+            document.getElementById('single-highscore').classList.add('hidden-screen');
+            document.getElementById('chat-input-area').classList.remove('hidden-screen');
             document.getElementById('turn-indicator').classList.remove('hidden');
-            document.getElementById('chat-history').innerHTML = '<div class="chat-system">게임 시작! 매너 채팅 부탁드립니다.</div>';
+            document.getElementById('chat-history').innerHTML = '<div class="chat-system">게임 시작!</div>';
             switchTab('chat');
             updateUI();
         }
 
         // ==========================================
-        // 3. 인게임 액션 (Roll/Keep)
+        // 3. 인게임 액션 (버그 수정됨)
         // ==========================================
         function resetTurn() {
-            GAME.dice = [1,2,3,4,5]; GAME.locked = [false,false,false,false,false];
+            GAME.dice = [1,2,3,4,5];
+            GAME.locked = [false,false,false,false,false];
             GAME.rolls = 3; GAME.bet = 0;
             document.getElementById('bet-slider').value = 0;
             document.getElementById('bet-slider').disabled = false;
@@ -470,13 +522,23 @@
 
         function actionRoll() {
             if(MODE === 'multi' && !isMyTurn()) return;
-            if(GAME.rolls <= 0) return;
+            
+            // [수정] 멀티플레이 시 전역 GAME.rolls가 아닌 내 플레이어 정보의 rolls 확인
+            let currentRolls = GAME.rolls;
+            if (MODE === 'multi') {
+                const me = GAME.players.find(p => p.id === GAME.myId);
+                if (me) currentRolls = me.rolls;
+            }
+
+            if(currentRolls <= 0) return; // 수정된 변수로 체크
+            
             const bet = parseInt(document.getElementById('bet-slider').value);
             if(bet <= 0) return alert("투자를 하세요!");
             if(bet > GAME.money) return alert("자금이 부족합니다.");
             
             if(MODE === 'single') {
-                GAME.bet = bet; GAME.rolls--;
+                GAME.bet = bet;
+                GAME.rolls--;
                 localRoll();
                 document.getElementById('bet-slider').disabled = true;
                 updateUI();
@@ -487,14 +549,12 @@
 
         function actionKeep() {
             if(MODE === 'multi' && !isMyTurn()) return;
-            
             if(MODE === 'single') {
                 if(GAME.bet === 0) return alert("게임 진행 안됨");
                 const h = evaluate(GAME.dice);
                 const prof = Math.floor(GAME.bet * h.mult);
                 const net = prof - GAME.bet;
                 GAME.money += net;
-                
                 addChatMessage('시스템', `라운드 ${GAME.round}: ${net>=0?'+':''}${net} (${h.name})`, false);
                 
                 GAME.round++;
@@ -503,7 +563,8 @@
                     localStorage.setItem('dv_highscore', best);
                     showResult([{name:'나', money:GAME.money}]);
                 } else {
-                    resetTurn(); updateUI();
+                    resetTurn();
+                    updateUI();
                 }
             } else {
                 const bet = parseInt(document.getElementById('bet-slider').value);
@@ -528,12 +589,20 @@
 
         function toggleLock(i) {
             if(MODE==='multi' && !isMyTurn()) return;
-            if(GAME.rolls === 3) return;
+            
+            // [수정] 잠금 기능도 내 플레이어 정보를 기준으로 확인
+            let currentRolls = GAME.rolls;
+            if (MODE === 'multi') {
+                const me = GAME.players.find(p => p.id === GAME.myId);
+                if (me) currentRolls = me.rolls;
+            }
+
+            if(currentRolls === 3) return; // 굴리기 전 잠금 불가
+            
             GAME.locked[i] = !GAME.locked[i];
             updateUI();
         }
 
-        // --- UI 업데이트 통합 ---
         function updateUI() {
             const isSingle = MODE === 'single';
             const me = isSingle ? GAME : GAME.players.find(p=>p.id===GAME.myId);
@@ -543,7 +612,6 @@
             document.getElementById('game-round').innerText = GAME.round;
             document.getElementById('game-max-rounds').innerText = GAME.maxRounds;
             document.getElementById('current-money').innerText = me.money.toLocaleString();
-            
             const ind = document.getElementById('turn-indicator');
             const controls = document.getElementById('control-panel');
             
@@ -562,16 +630,14 @@
             }
 
             const displayDice = isSingle ? GAME.dice : curP.dice;
-            
+            const displayLocked = isSingle ? GAME.locked : (isMe ? GAME.locked : [false,false,false,false,false]);
             document.getElementById('dice-container').innerHTML = displayDice.map((v, i) => `
-                <div class="die die-lg ${isMe && GAME.locked[i] ? 'locked' : ''}" onclick="toggleLock(${i})">${v}</div>
+                <div class="die die-lg ${displayLocked[i] ? 'locked' : ''}" onclick="toggleLock(${i})">${v}</div>
             `).join('');
-
             const res = evaluate(displayDice);
             document.getElementById('hand-rank').innerText = res.name;
             document.getElementById('hand-mult').innerText = `x${res.mult}`;
             document.getElementById('rolls-left').innerText = isSingle ? GAME.rolls : curP.rolls;
-            
             if(!isMe && !isSingle) {
                 document.getElementById('bet-display').innerText = curP.bet;
             } else {
@@ -585,7 +651,6 @@
                     <div class="bg-gray-800 p-2 rounded border ${p.id===curP.id ? 'border-yellow-400' : 'border-gray-600'} mb-2">
                         <div class="flex justify-between text-xs font-bold text-white"><span>${p.name}</span><span>$${p.money.toLocaleString()}</span></div>
                         <div class="flex gap-1 justify-center mt-1">${p.dice.map(d=>`<span class="w-4 h-4 bg-gray-600 rounded flex items-center justify-center text-[10px]">${d}</span>`).join('')}</div>
-                        <div class="text-[9px] text-gray-400 text-right mt-1">투자: ${p.bet}</div>
                     </div>`).join('');
             }
         }
@@ -604,7 +669,8 @@
 
             if(act === 'ROLL') {
                 if(p.rolls > 0) {
-                    p.bet = pl.bet; p.rolls--;
+                    p.bet = pl.bet;
+                    p.rolls--;
                     p.dice = p.dice.map((v, i) => pl.locked[i] ? v : Math.floor(Math.random()*6)+1);
                     broadcast({type:'STATE_UPDATE', state:GAME});
                     if(GAME.isHost) updateUI();
@@ -615,24 +681,24 @@
                 const net = prof - p.bet;
                 p.money += net;
                 broadcast({type:'CHAT', sender:'시스템', text:`${p.name}: ${net>=0?'+':''}${net} (${res.name})`});
-                
                 p.rolls=3; p.bet=0; GAME.locked=[false,false,false,false,false];
                 
                 GAME.turnIdx++;
                 if(GAME.turnIdx >= GAME.players.length) {
-                    GAME.turnIdx = 0; GAME.round++;
+                    GAME.turnIdx = 0;
+                    GAME.round++;
                     if(GAME.round > GAME.maxRounds) {
                         const ranks = [...GAME.players].sort((a,b)=>b.money-a.money);
                         broadcast({type:'GAME_OVER', rankings:ranks}); showResult(ranks); return;
                     }
                 }
-                const nextP = GAME.players[GAME.turnIdx]; nextP.rolls=3; nextP.bet=0;
+                const nextP = GAME.players[GAME.turnIdx];
+                nextP.rolls=3; nextP.bet=0;
                 broadcast({type:'STATE_UPDATE', state:GAME});
                 if(GAME.isHost) updateUI();
             }
         }
 
-        // --- Utils ---
         function isMyTurn() { return GAME.players[GAME.turnIdx].id === GAME.myId; }
         function copyId() { navigator.clipboard.writeText(GAME.myId); alert("복사됨"); }
         document.getElementById('bet-slider').addEventListener('input', e => {
@@ -640,7 +706,6 @@
             if(val > me.money) e.target.value = me.money;
             document.getElementById('bet-display').innerText = e.target.value;
         });
-
         function showResult(ranks) {
             showScreen('result-modal');
             document.getElementById('rankings').innerHTML = ranks.map((p,i) => `
