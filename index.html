@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎲 Dice Vestor: Final Fix</title>
+    <title>🎲 Dice Vestor: Advanced Rules</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -165,17 +165,38 @@
         let peer = null, connections = [], hostConn = null;
         let singleStats = [0,0,0,0,0,0], singleTotal = 0, myChart = null;
         
+        // ==========================================
+        // [수정됨] 족보 로직 (라지/스몰 스트레이트 세분화)
+        // ==========================================
+        function getUniqueStr(d) {
+            return [...new Set(d)].sort((a,b)=>a-b).join('');
+        }
+
         const HANDS = [
-            { name: "Yacht", mult: 10, check: d=>hasKind(d,5) }, { name: "4 Kind", mult: 5, check: d=>hasKind(d,4) },
-            { name: "Full House", mult: 3, check: d=>isFullHouse(d) }, { name: "Straight", mult: 2, check: d=>isStraight(d) },
-            { name: "3 Kind", mult: 1.5, check: d=>hasKind(d,3) }, { name: "2 Pair", mult: 1.0, check: d=>isTwoPair(d) },
-            { name: "1 Pair", mult: 0.5, check: d=>hasKind(d,2) }, { name: "No Pair", mult: 0, check: d=>true }
+            { name: "Yacht", mult: 10, check: d=>hasKind(d,5) }, 
+            { name: "4 Kind", mult: 5, check: d=>hasKind(d,4) },
+            { name: "Full House", mult: 3, check: d=>isFullHouse(d) },
+            
+            // 라지 스트레이트 (5개 연속)
+            { name: "L-Straight (2-6)", mult: 5.0, check: d => getUniqueStr(d) === '23456' },
+            { name: "L-Straight (1-5)", mult: 4.0, check: d => getUniqueStr(d) === '12345' },
+
+            // 스몰 스트레이트 (4개 연속)
+            { name: "S-Straight (3-6)", mult: 2.5, check: d => getUniqueStr(d).includes('3456') },
+            { name: "S-Straight (2-5)", mult: 2.2, check: d => getUniqueStr(d).includes('2345') },
+            { name: "S-Straight (1-4)", mult: 2.0, check: d => getUniqueStr(d).includes('1234') },
+
+            { name: "3 Kind", mult: 1.5, check: d=>hasKind(d,3) }, 
+            { name: "2 Pair", mult: 1.0, check: d=>isTwoPair(d) },
+            { name: "1 Pair", mult: 0.5, check: d=>hasKind(d,2) }, 
+            { name: "No Pair", mult: 0, check: d=>true }
         ];
+
         function evaluate(d) { return HANDS.find(h => h.check(d)); }
         function hasKind(d,n){const c={};d.forEach(x=>c[x]=(c[x]||0)+1);return Object.values(c).some(v=>v>=n);}
         function isFullHouse(d){const c={};d.forEach(x=>c[x]=(c[x]||0)+1);const v=Object.values(c);return (v.includes(3)&&v.includes(2))||v.includes(5);}
-        function isStraight(d){const u=[...new Set(d)].sort().join('');return u.includes('1234')||u.includes('2345')||u.includes('3456');}
         function isTwoPair(d){const c={};d.forEach(x=>c[x]=(c[x]||0)+1);return Object.values(c).filter(v=>v>=2).length>=2;}
+        // ==========================================
 
         function showScreen(id) {
             ['screen-menu', 'screen-lobby', 'screen-game', 'result-modal'].forEach(s => document.getElementById(s).classList.add('hidden-screen'));
@@ -236,14 +257,14 @@
         }
 
         // ==========================================
-        // 2. 멀티 플레이 (PeerJS 연결 수정됨)
+        // 2. 멀티 플레이
         // ==========================================
         function setupMultiplayer(role) {
             MODE = 'multi';
             document.getElementById('tab-btn-stats').classList.add('hidden');
             showScreen('screen-lobby');
             if(peer) peer.destroy();
-            peer = new Peer({ debug: 2 }); // debug level 추가
+            peer = new Peer({ debug: 2 });
             
             peer.on('open', id => {
                 GAME.myId = id;
@@ -264,10 +285,8 @@
                 }
             });
 
-            // 호스트: 누군가 접속했을 때
             peer.on('connection', conn => {
                 if(GAME.isHost) {
-                    // [중요 수정] 바로 데이터 보내지 않고, 상대방이 'JOIN_REQ'를 보낼 때까지 기다림
                     setupConn(conn);
                 }
             });
@@ -282,9 +301,8 @@
             document.getElementById('guest-status').classList.remove('hidden-screen');
             document.getElementById('guest-status').innerText = "호스트 찾는 중...";
 
-            hostConn = peer.connect(hostId, { reliable: true }); // reliable 옵션
+            hostConn = peer.connect(hostId, { reliable: true });
 
-            // [중요 수정] 연결이 'open' 되면 그때 리스너를 달고 'JOIN_REQ'를 보냄
             hostConn.on('open', () => {
                 document.getElementById('guest-status').innerText = "서버 접속 성공! 입장 요청 중...";
                 setupConn(hostConn);
@@ -300,25 +318,17 @@
 
         function setupConn(conn) {
             conn.on('data', data => {
-                // [중요 수정] 호스트가 JOIN_REQ를 받으면 그때 플레이어를 추가하고 LOBBY_UPDATE를 보냄
                 if (GAME.isHost && data.type === 'JOIN_REQ') {
-                    if(GAME.state !== 'lobby') return conn.close(); // 게임 중이면 거절
-                    if(GAME.players.some(p => p.id === conn.peer)) return; // 이미 있으면 무시
-
-                    // 1. 플레이어 목록에 추가
+                    if(GAME.state !== 'lobby') return conn.close();
+                    if(GAME.players.some(p => p.id === conn.peer)) return;
                     const newPlayer = {id:conn.peer, name: `User ${GAME.players.length+1}`, money:1000, dice:[1,1,1,1,1], rolls:3, bet:0};
                     GAME.players.push(newPlayer);
-                    
-                    // 2. 연결 목록에 추가
                     connections.push(conn);
-                    
-                    // 3. 전체에게 로비 업데이트 전송 (이제 안전함)
                     broadcast({type:'LOBBY_UPDATE', players:GAME.players});
                     updateLobbyList();
                     return;
                 }
 
-                // 일반 메시지 처리
                 if(data.type === 'CHAT') addChatMessage(data.sender, data.text, false);
                 else if(data.type === 'LOBBY_UPDATE') { 
                     GAME.players = data.players; 
@@ -341,7 +351,7 @@
         }
 
         function broadcast(msg) { 
-            if(GAME.isHost) connections.forEach(c => { if(c.open) c.send(msg); }); // open 체크 추가
+            if(GAME.isHost) connections.forEach(c => { if(c.open) c.send(msg); });
         }
         function sendAction(act, pl) {
             if(GAME.isHost) handleHostAction(GAME.myId, act, pl);
@@ -365,7 +375,6 @@
             GAME.turnIdx = 0; GAME.round = 1;
             GAME.players.forEach(p => { p.money=1000; p.dice=[1,2,3,4,5]; p.rolls=3; p.bet=0; });
             const state = JSON.parse(JSON.stringify(GAME));
-            // 확실하게 보내기 위해 약간의 지연 후 전송할 수도 있지만, 핸드셰이크가 되어 있으므로 바로 보냄
             broadcast({type:'GAME_START', state:state});
             startMultiGame();
         }
@@ -391,7 +400,6 @@
         function actionRoll() {
             if(MODE === 'multi' && !isMyTurn()) return;
             
-            // [수정] 멀티플레이 동기화 오류 방지
             let currentRolls = GAME.rolls;
             if (MODE === 'multi') {
                 const me = GAME.players.find(p => p.id === GAME.myId);
